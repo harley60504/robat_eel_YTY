@@ -21,7 +21,7 @@
   // 伺服參數
   #define bodyNum 6
   Servo servos[bodyNum];
-  int servoPins[bodyNum] = {14, 13, 12, 11, 10, 9};
+  int servoPins[bodyNum] = {2, 13, 12, 11, 10, 9};
   float servoDefaultAngles[bodyNum] = {100, 102, 95, 90, 90, 90};
   float angle[bodyNum];
   float Ajoint = 30, frequency = 0.7, LAMBDAinput = 0.4;

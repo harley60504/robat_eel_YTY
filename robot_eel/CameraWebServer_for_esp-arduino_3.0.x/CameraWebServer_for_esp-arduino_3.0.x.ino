@@ -1,34 +1,120 @@
 #include "esp_camera.h"
 #include <WiFi.h>
+#include <WebServer.h>
 
-//
-// WARNING!!! PSRAM IC required for UXGA resolution and high JPEG quality
-//            Ensure ESP32 Wrover Module or other board with PSRAM is selected
-//            Partial images will be transmitted if image exceeds buffer size
-//
-//            You must select partition scheme from the board menu that has at least 3MB APP space.
-//            Face Recognition is DISABLED for ESP32 and ESP32-S2, because it takes up from 15
-//            seconds to process single frame. Face Detection is ENABLED if PSRAM is enabled as well
-
-// ===================
-// Select camera model
-// ===================
-#define CAMERA_MODEL_XIAO_ESP32S3 // Has PSRAM
+#define CAMERA_MODEL_XIAO_ESP32S3
 #include "camera_pins.h"
 
 // ===========================
-// Enter your WiFi credentials
+// Wi-Fi 設定（雙組備援）
 // ===========================
-const char *ssid = "**********";
-const char *password = "**********";
+const char *ssid1 = "YTY_2.4g";
+const char *password1 = "weareytylab";
+const char *ssid2 = "TP-Link_9BD8_2.4g";
+const char *password2 = "qwer4321";
 
-void startCameraServer();
-void setupLedFlash(int pin);
+String connectedSSID = "未連接";
+WebServer server(80);
 
+// ===========================
+// Wi-Fi 自動連線
+// ===========================
+void connectToWiFi() {
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid1, password1);
+  Serial.print("WiFi 連線中");
+
+  for (int i = 0; i < 10 && WiFi.status() != WL_CONNECTED; ++i) {
+    delay(300);
+    Serial.print(".");
+  }
+  Serial.println();
+
+  if (WiFi.status() == WL_CONNECTED) {
+    connectedSSID = WiFi.SSID();
+    Serial.printf("✅ 已連線至 %s\nIP 位址: %s\n", connectedSSID.c_str(), WiFi.localIP().toString().c_str());
+    return;
+  }
+
+  Serial.println("❌ 第一組 WiFi 失敗，改用第二組...");
+  WiFi.begin(ssid2, password2);
+  for (int i = 0; i < 10 && WiFi.status() != WL_CONNECTED; ++i) {
+    delay(300);
+    Serial.print(".");
+  }
+  Serial.println();
+
+  if (WiFi.status() == WL_CONNECTED) {
+    connectedSSID = WiFi.SSID();
+    Serial.printf("✅ 已連線至 %s\nIP 位址: %s\n", connectedSSID.c_str(), WiFi.localIP().toString().c_str());
+  } else {
+    Serial.println("❌ 無法連線任何 WiFi，將不啟動 Web 伺服器");
+  }
+}
+
+// ===========================
+// 主畫面 HTML
+// ===========================
+void handleRoot() {
+  String html = R"rawliteral(
+  <!DOCTYPE html>
+  <html>
+  <head>
+    <meta charset="UTF-8">
+    <title>XIAO ESP32S3 高速相機</title>
+    <style>
+      body {
+        background:#0a0a0a;
+        color:#fff;
+        font-family:"Segoe UI",sans-serif;
+        text-align:center;
+      }
+      h1 { color:#00e5ff; margin-top:10px; }
+      #stream {
+        width:800px; max-width:95%;
+        margin-top:20px;
+        border-radius:10px;
+        box-shadow:0 0 25px rgba(0,255,255,0.4);
+      }
+    </style>
+  </head>
+  <body>
+    <h1>⚡ XIAO ESP32S3 MJPEG 串流伺服器</h1>
+    <div class="info">(320×240 @ ~25 FPS 高效模式)</div>
+    <img id="stream" src="/stream"/>
+  </body>
+  </html>
+  )rawliteral";
+  server.send(200, "text/html", html);
+}
+
+// ===========================
+// MJPEG 串流處理
+// ===========================
+void handleStream() {
+  WiFiClient client = server.client();
+  String response = "HTTP/1.1 200 OK\r\n"
+                    "Content-Type: multipart/x-mixed-replace; boundary=frame\r\n\r\n";
+  client.print(response);
+
+  while (client.connected()) {
+    camera_fb_t *fb = esp_camera_fb_get();
+    if (!fb) continue;
+
+    client.printf("--frame\r\nContent-Type: image/jpeg\r\n\r\n");
+    client.write(fb->buf, fb->len);
+    client.printf("\r\n");
+    esp_camera_fb_return(fb);
+    delay(3);  // 控制串流速度，減少延遲
+  }
+}
+
+// ===========================
+// 相機初始化
+// ===========================
 void setup() {
   Serial.begin(115200);
-  Serial.setDebugOutput(true);
-  Serial.println();
+  Serial.println("\n🚀 啟動 XIAO ESP32S3 相機...");
 
   camera_config_t config;
   config.ledc_channel = LEDC_CHANNEL_0;
@@ -49,91 +135,47 @@ void setup() {
   config.pin_sccb_scl = SIOC_GPIO_NUM;
   config.pin_pwdn = PWDN_GPIO_NUM;
   config.pin_reset = RESET_GPIO_NUM;
-  config.xclk_freq_hz = 20000000;
-  config.frame_size = FRAMESIZE_UXGA;
-  config.pixel_format = PIXFORMAT_JPEG;  // for streaming
-  //config.pixel_format = PIXFORMAT_RGB565; // for face detection/recognition
-  config.grab_mode = CAMERA_GRAB_WHEN_EMPTY;
-  config.fb_location = CAMERA_FB_IN_PSRAM;
-  config.jpeg_quality = 12;
-  config.fb_count = 1;
 
-  // if PSRAM IC present, init with UXGA resolution and higher JPEG quality
-  //                      for larger pre-allocated frame buffer.
-  if (config.pixel_format == PIXFORMAT_JPEG) {
-    if (psramFound()) {
-      config.jpeg_quality = 10;
-      config.fb_count = 2;
-      config.grab_mode = CAMERA_GRAB_LATEST;
-    } else {
-      // Limit the frame size when PSRAM is not available
-      config.frame_size = FRAMESIZE_SVGA;
-      config.fb_location = CAMERA_FB_IN_DRAM;
-    }
-  } else {
-    // Best option for face detection/recognition
-    config.frame_size = FRAMESIZE_240X240;
-#if CONFIG_IDF_TARGET_ESP32S3
-    config.fb_count = 2;
-#endif
+  config.xclk_freq_hz = 24000000;
+  config.pixel_format  = PIXFORMAT_JPEG;
+  config.frame_size    = FRAMESIZE_QVGA;   // 320x240 高 FPS 模式
+  config.jpeg_quality  = 12;
+  config.fb_count      = 2;
+  config.fb_location   = CAMERA_FB_IN_PSRAM;
+  config.grab_mode     = CAMERA_GRAB_LATEST;
+
+  if (!psramFound()) {
+    Serial.println("⚠️ 未偵測 PSRAM，改用 DRAM 模式");
+    config.fb_location = CAMERA_FB_IN_DRAM;
+    config.fb_count = 1;
   }
 
-#if defined(CAMERA_MODEL_ESP_EYE)
-  pinMode(13, INPUT_PULLUP);
-  pinMode(14, INPUT_PULLUP);
-#endif
-
-  // camera init
   esp_err_t err = esp_camera_init(&config);
   if (err != ESP_OK) {
-    Serial.printf("Camera init failed with error 0x%x", err);
+    Serial.printf("❌ 相機初始化失敗 (錯誤碼: 0x%x)\n", err);
     return;
   }
 
   sensor_t *s = esp_camera_sensor_get();
-  // initial sensors are flipped vertically and colors are a bit saturated
-  if (s->id.PID == OV3660_PID) {
-    s->set_vflip(s, 1);        // flip it back
-    s->set_brightness(s, 1);   // up the brightness just a bit
-    s->set_saturation(s, -2);  // lower the saturation
-  }
-  // drop down frame size for higher initial frame rate
-  if (config.pixel_format == PIXFORMAT_JPEG) {
-    s->set_framesize(s, FRAMESIZE_QVGA);
+  if (s) {
+    s->set_vflip(s, 1);
+    s->set_hmirror(s, 0);
+    s->set_brightness(s, 1);
+    s->set_saturation(s, 1);
   }
 
-#if defined(CAMERA_MODEL_M5STACK_WIDE) || defined(CAMERA_MODEL_M5STACK_ESP32CAM)
-  s->set_vflip(s, 1);
-  s->set_hmirror(s, 1);
-#endif
+  Serial.println("✅ 相機初始化成功");
 
-#if defined(CAMERA_MODEL_ESP32S3_EYE)
-  s->set_vflip(s, 1);
-#endif
+  connectToWiFi();
 
-// Setup LED FLash if LED pin is defined in camera_pins.h
-#if defined(LED_GPIO_NUM)
-  setupLedFlash(LED_GPIO_NUM);
-#endif
-
-  WiFi.begin(ssid, password);
-  WiFi.setSleep(false);
-
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
+  if (WiFi.status() == WL_CONNECTED) {
+    server.on("/", handleRoot);
+    server.on("/stream", handleStream);
+    server.begin();
+    Serial.printf("🌐 網頁伺服器啟動完成 → http://%s/\n", WiFi.localIP().toString().c_str());
   }
-  Serial.println("");
-  Serial.println("WiFi connected");
-
-  startCameraServer();
-
-  Serial.print("Camera Ready! Use 'http://");
-  Serial.print(WiFi.localIP());
-  Serial.println("' to connect");
 }
 
 void loop() {
-  // Do nothing. Everything is done in another task by the web server
-  delay(10000);
+  server.handleClient();
 }

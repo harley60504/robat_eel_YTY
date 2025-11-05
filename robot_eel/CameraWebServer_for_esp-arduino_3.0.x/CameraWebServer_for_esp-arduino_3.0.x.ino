@@ -21,6 +21,13 @@ WebServer server(80);
 // ===========================
 void connectToWiFi() {
   WiFi.mode(WIFI_STA);
+  
+  // ✅ 固定 IP 設定
+  IPAddress local_IP(192, 168, 0, 199);
+  IPAddress gateway(192, 168, 0, 1);
+  IPAddress subnet(255, 255, 255, 0);
+  WiFi.config(local_IP, gateway, subnet);
+
   WiFi.begin(ssid1, password1);
   Serial.print("WiFi 連線中");
 

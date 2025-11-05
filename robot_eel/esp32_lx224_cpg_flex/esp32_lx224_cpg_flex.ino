@@ -350,6 +350,15 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         <tr><td>ADS2 A3:</td><td><span id="ads2_3">-</span> V</td></tr>
       </table>
     </div>
+
+    <!-- 相機串流 -->
+    <div class="card">
+      <h3>📷 XIAO ESP32S3 相機畫面</h3>
+      <img src="http://192.168.0.199/stream"
+          style="width:100%;border-radius:10px;box-shadow:0 0 10px rgba(0,0,0,0.4);">
+    </div>
+
+
     <!-- 🕒 系統控制 -->
     <div class="card">
       <h3>🕒 系統控制</h3>
@@ -648,10 +657,17 @@ void adxlTask(void *pvParameters) {
 // ================== WiFi ==================
 void connectToWiFi() {
   WiFi.mode(WIFI_STA);
+
+  // 固定 IP 設定
+  IPAddress local_IP(192, 168, 0, 198);
+  IPAddress gateway(192, 168, 0, 1);
+  IPAddress subnet(255, 255, 255, 0);
+  WiFi.config(local_IP, gateway, subnet);
+  
   WiFi.begin(ssid1, password1);
   Serial.print("WiFi 連線中");
-  for (int i = 0; i < 5 && WiFi.status() != WL_CONNECTED; ++i) {
-    delay(200);
+  for (int i = 0; i < 10 && WiFi.status() != WL_CONNECTED; ++i) {
+    delay(300);
     Serial.print(".");
   }
   Serial.println();
@@ -664,8 +680,8 @@ void connectToWiFi() {
   } else {
     Serial.println("❌ WiFi 連線失敗，嘗試連接第二組 WiFi...");
     WiFi.begin(ssid2, password2);
-    for (int i = 0; i < 5 && WiFi.status() != WL_CONNECTED; ++i) {
-      delay(200);
+    for (int i = 0; i < 10 && WiFi.status() != WL_CONNECTED; ++i) {
+      delay(300);
       Serial.print(".");
     }
     Serial.println();

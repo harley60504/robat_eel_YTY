@@ -1,7 +1,7 @@
 #include "esp_camera.h"
 #include <WiFi.h>
 #include <WebServer.h>
-
+#include <ESPmDNS.h> 
 #define CAMERA_MODEL_XIAO_ESP32S3
 #include "camera_pins.h"
 
@@ -10,8 +10,8 @@
 // ===========================
 const char *ssid1 = "YTY_2.4g";
 const char *password1 = "weareytylab";
-const char *ssid2 = "TP-Link_9BD8_2.4g";
-const char *password2 = "qwer4321";
+const char *ssid2 = "Sunday";
+const char *password2 = "qwer1234";
 
 String connectedSSID = "未連接";
 WebServer server(80);
@@ -19,43 +19,56 @@ WebServer server(80);
 // ===========================
 // Wi-Fi 自動連線
 // ===========================
+
+const char* HOSTNAME = "esp32-cam";  // 之後可用 http://esp32-cam.local 連線
+
 void connectToWiFi() {
   WiFi.mode(WIFI_STA);
-  
-  // ✅ 固定 IP 設定
-  IPAddress local_IP(192, 168, 0, 199);
-  IPAddress gateway(192, 168, 0, 1);
-  IPAddress subnet(255, 255, 255, 0);
-  WiFi.config(local_IP, gateway, subnet);
 
-  WiFi.begin(ssid1, password1);
-  Serial.print("WiFi 連線中");
+  // 確保用 DHCP（清掉任何舊的靜態設定）
+  WiFi.disconnect(true, true);
+  delay(200);
+  WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
+  WiFi.setHostname(HOSTNAME);
 
-  for (int i = 0; i < 10 && WiFi.status() != WL_CONNECTED; ++i) {
-    delay(300);
-    Serial.print(".");
+  auto tryConnect = [](const char* ssid, const char* pass) -> bool {
+    WiFi.begin(ssid, pass);
+    Serial.printf("WiFi 連線中（%s）", ssid);
+    for (int i = 0; i < 40 && WiFi.status() != WL_CONNECTED; ++i) {  // ~12s
+      delay(300);
+      Serial.print(".");
+    }
+    Serial.println();
+    return WiFi.status() == WL_CONNECTED;
+  };
+
+  if (!tryConnect(ssid1, password1)) {
+    Serial.println("❌ 第一組 WiFi 失敗，改用第二組...");
+    WiFi.disconnect(true, true);
+    delay(200);
+    WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE); // 再確認 DHCP
+    if (!tryConnect(ssid2, password2)) {
+      Serial.println("❌ 無法連線任何 WiFi，將不啟動 Web 伺服器");
+      // （可選）最後保底：開 AP 模式方便維護
+      // WiFi.mode(WIFI_AP);
+      // WiFi.softAP("ESP32_AP", "12345678");
+      // Serial.printf("📶 AP 啟動，IP：%s\n", WiFi.softAPIP().toString().c_str());
+      return;
+    }
   }
-  Serial.println();
 
-  if (WiFi.status() == WL_CONNECTED) {
-    connectedSSID = WiFi.SSID();
-    Serial.printf("✅ 已連線至 %s\nIP 位址: %s\n", connectedSSID.c_str(), WiFi.localIP().toString().c_str());
-    return;
-  }
+  // 成功連線
+  connectedSSID = WiFi.SSID();
+  Serial.printf("✅ 已連線至 %s\nIP 位址: %s\n",
+                connectedSSID.c_str(), WiFi.localIP().toString().c_str());
 
-  Serial.println("❌ 第一組 WiFi 失敗，改用第二組...");
-  WiFi.begin(ssid2, password2);
-  for (int i = 0; i < 10 && WiFi.status() != WL_CONNECTED; ++i) {
-    delay(300);
-    Serial.print(".");
-  }
-  Serial.println();
-
-  if (WiFi.status() == WL_CONNECTED) {
-    connectedSSID = WiFi.SSID();
-    Serial.printf("✅ 已連線至 %s\nIP 位址: %s\n", connectedSSID.c_str(), WiFi.localIP().toString().c_str());
+  // 啟用 mDNS，之後用 http://<HOSTNAME>.local 存取
+  MDNS.end();  // 先清一次避免殘留
+  if (MDNS.begin(HOSTNAME)) {
+    MDNS.addService("http", "tcp", 80); // 你的 Web 伺服器若不是 80，改成對應埠
+    Serial.printf("🌐 以名稱連線： http://%s.local\n", HOSTNAME);
   } else {
-    Serial.println("❌ 無法連線任何 WiFi，將不啟動 Web 伺服器");
+    Serial.println("⚠️ mDNS 啟動失敗");
   }
 }
 

@@ -1,13 +1,96 @@
+// --- Wi-Fi / mDNS / Web 伺服器 ---
 #include <WiFi.h>
+#include <ESPmDNS.h>
 #include <WebServer.h>
-#include <Update.h>
-#include <math.h>
+#include "esp_wifi.h"     // 用到 esp_wifi_set_ps()
+
+// --- 數學 ---
+#include <math.h>         // sinf/cosf/atan2f/sqrtf/fminf/fmaxf
+
+// --- I2C / SPI 與感測器 ---
 #include <Wire.h>
+#include <SPI.h>
 #include <Adafruit_ADS1X15.h>
+#include <PL_ADXL355.h>
+
+// --- 檔案系統 ---
 #include "FS.h"
 #include "SPIFFS.h"
-#include <SPI.h>
-#include <PL_ADXL355.h>
+
+
+// ================== WiFi ==================
+WebServer server(80);
+// STA 模式 Wi-Fi
+const char* ssid1 = "YTY_2.4g";
+const char* password1 = "weareytylab";
+const char* ssid2 = "Sunday";
+const char* password2 = "qwer1234";
+
+// AP 模式
+const char* AP_SSID = "ESP32_Controller_AP";
+const char* AP_PASS = "12345678";
+
+// 主機名
+const char* HOSTNAME = "esp32-controller";
+
+String connectedSSID = "未連接";
+
+
+void connectToWiFi() {
+  WiFi.onEvent([](WiFiEvent_t e, WiFiEventInfo_t info) {
+    if (e == ARDUINO_EVENT_WIFI_STA_DISCONNECTED) {
+      Serial.printf("⚠️ STA 斷線（reason=%d），維持 AP，嘗試重連…\n", info.wifi_sta_disconnected.reason);
+      WiFi.reconnect();
+    }
+  });
+
+  WiFi.mode(WIFI_AP_STA);
+  WiFi.setSleep(false);
+  esp_wifi_set_ps(WIFI_PS_NONE);
+  
+  WiFi.softAP("ESP32_Controller_AP", "12345678");
+  delay(200);
+  Serial.printf("📡 AP 啟動：SSID=%s  PASS=%s  IP=%s\n",
+                "ESP32_Controller_AP", "12345678", WiFi.softAPIP().toString().c_str());
+
+  // 啟動 mDNS
+  MDNS.end();
+  if (MDNS.begin("esp32-controller")) {
+    MDNS.addService("http", "tcp", 80);
+    Serial.println("🌐 可用連線：http://esp32-controller.local");
+  }
+
+  WiFi.disconnect(true, true);
+  delay(200);
+  WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
+  WiFi.setHostname("esp32-controller");
+
+  auto tryConnect = [](const char* ssid, const char* pass) -> bool {
+    WiFi.begin(ssid, pass);
+    Serial.printf("WiFi 連線中（%s）", ssid);
+    for (int i = 0; i < 40 && WiFi.status() != WL_CONNECTED; ++i) {
+      delay(300);
+      Serial.print(".");
+    }
+    Serial.println();
+    return WiFi.status() == WL_CONNECTED;
+  };
+
+  if (!tryConnect("YTY_2.4g", "weareytylab")) {
+    Serial.println("❌ 第一組失敗，改用第二組...");
+    tryConnect("Sunday", "qwer1234");
+  }
+
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.printf("✅ 已連線至 %s\nIP 位址: %s\n",
+                  WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
+  } else {
+    Serial.println("⚠️ STA 未連線，僅提供 AP 模式操作");
+  }
+
+  Serial.printf("🔗 可使用：AP http://%s  |  mDNS http://esp32-controller.local\n",
+                WiFi.softAPIP().toString().c_str());
+}
 
 // ================== 安全常數 ==================
 #ifndef M_PI
@@ -34,16 +117,10 @@ float adsMinValidVoltage = 0.6f; // ADS 懸空修正閾值（小於則視為 0�
 
 bool isPaused = false;    // 模式: 0 = sin, 1 = cpg, 2 = offset
 int  controlMode = 0;
-bool useFeedback = true;  // 預設啟用回授
+bool useFeedback = false;  // 預設啟用回授
 float feedbackGain = 1.0f;// 回授權重 (0 = 關閉, 1 = 全部啟用)
 
-// ================== WiFi ==================
-const char *ssid1 = "YTY_2.4g";
-const char *password1 = "weareytylab";
-const char *ssid2 = "TP-Link_9BD8_2.4g";
-const char *password2 = "qwer4321";
-String connectedSSID = "未連接";
-WebServer server(80);
+
 
 // ================== 兩顆 ADS1115 ==================
 #define SCL_PIN 2
@@ -354,7 +431,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
     <!-- 相機串流 -->
     <div class="card">
       <h3>📷 XIAO ESP32S3 相機畫面</h3>
-      <img src="http://192.168.0.199/stream"
+      <img src="http://esp32-cam.local/stream"
           style="width:100%;border-radius:10px;box-shadow:0 0 10px rgba(0,0,0,0.4);">
     </div>
 
@@ -654,48 +731,6 @@ void adxlTask(void *pvParameters) {
 }
 
 
-// ================== WiFi ==================
-void connectToWiFi() {
-  WiFi.mode(WIFI_STA);
-
-  // 固定 IP 設定
-  IPAddress local_IP(192, 168, 0, 198);
-  IPAddress gateway(192, 168, 0, 1);
-  IPAddress subnet(255, 255, 255, 0);
-  WiFi.config(local_IP, gateway, subnet);
-  
-  WiFi.begin(ssid1, password1);
-  Serial.print("WiFi 連線中");
-  for (int i = 0; i < 10 && WiFi.status() != WL_CONNECTED; ++i) {
-    delay(300);
-    Serial.print(".");
-  }
-  Serial.println();
-
-  if (WiFi.status() == WL_CONNECTED) {
-    connectedSSID = WiFi.SSID();
-    setupWebServer();
-    Serial.print("✅ WiFi 已連上，IP: ");
-    Serial.println(WiFi.localIP());
-  } else {
-    Serial.println("❌ WiFi 連線失敗，嘗試連接第二組 WiFi...");
-    WiFi.begin(ssid2, password2);
-    for (int i = 0; i < 10 && WiFi.status() != WL_CONNECTED; ++i) {
-      delay(300);
-      Serial.print(".");
-    }
-    Serial.println();
-
-    if (WiFi.status() == WL_CONNECTED) {
-      connectedSSID = WiFi.SSID();
-      setupWebServer();
-      Serial.print("✅ 第二組 WiFi 已連上，IP: ");
-      Serial.println(WiFi.localIP());
-    } else {
-      Serial.println("❌ 第二組 WiFi 也連線失敗（將不開啟 Web 介面）");
-    }
-  }
-}
 
 
 // ================== setup / loop ==================
@@ -721,6 +756,15 @@ void setup() {
   // 檔案系統 / WiFi / CPG 初始化
   initLogFile();
   connectToWiFi();
+
+  setupWebServer();  // ★ 一律啟動
+  Serial.printf("🌐 Web 伺服器啟動：AP http://%s  ",
+                WiFi.softAPIP().toString().c_str());
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.printf("|  STA http://%s\n", WiFi.localIP().toString().c_str());
+  } else {
+    Serial.println("|  STA 未連線");
+  }
   initCPG();
 
   // 建立 Tasks

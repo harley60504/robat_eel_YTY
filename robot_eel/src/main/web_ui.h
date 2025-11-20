@@ -4,23 +4,20 @@
 #include "config.h"
 #include "index_html.h"
 #include "CamProxy.h"
+#include <HTTPClient.h>
+
+// 🧠 相機 IP（依實際設定修改）
+String cameraIP = "192.168.4.201";  // XIAO ESP32S3-CAM
 
 inline void setupWebServer() {
-  // === 首頁 ===
-  server.on("/", []() {
-    server.send_P(200, "text/html", INDEX_HTML);
-  });
 
-  // === 相機代理 ===
-  CamProxy::attach(
-    server,
-    "/cam",          // 串流
-    "/cam_status",   // 狀態查詢
-    "/cam_control",  // 控制命令代理
-    "/cam_snapshot"  // 快照
-  );
+  // --- 首頁 HTML ---
+  server.on("/", []() { server.send(200, "text/html", INDEX_HTML); });
 
-  // === 控制模式 ===
+  // --- 串流代理 ---
+  CamProxy::attach(server);
+
+  // --- 模式與控制 ---
   server.on("/setMode", []() {
     if (server.hasArg("m")) {
       controlMode = server.arg("m").toInt();
@@ -32,17 +29,16 @@ inline void setupWebServer() {
 
   server.on("/toggleFeedback", []() {
     useFeedback = !useFeedback;
-    server.send(200, "text/plain", useFeedback ? "開啟" : "關閉");
+    server.send(200, "text/plain", String(useFeedback ? "開啟" : "關閉"));
   });
 
-  // === 參數設定 ===
   server.on("/setFrequency", []() { if (server.hasArg("f")) frequency = server.arg("f").toFloat(); server.send(200, "text/plain", String(frequency)); });
   server.on("/setAmplitude", []() { if (server.hasArg("a")) Ajoint = server.arg("a").toFloat(); server.send(200, "text/plain", String(Ajoint)); });
   server.on("/setLambda",   []() { if (server.hasArg("lambda")) lambda = server.arg("lambda").toFloat(); server.send(200, "text/plain", String(lambda)); });
   server.on("/setL",        []() { if (server.hasArg("L")) L = server.arg("L").toFloat(); server.send(200, "text/plain", String(L)); });
   server.on("/setFeedbackGain", []() { if (server.hasArg("g")) feedbackGain = server.arg("g").toFloat(); server.send(200, "text/plain", String(feedbackGain)); });
 
-  // === 狀態 JSON ===
+  // --- 狀態 JSON ---
   server.on("/status", []() {
     String json = "{";
     json += "\"frequency\":" + String(frequency, 2) + ",";
@@ -61,12 +57,12 @@ inline void setupWebServer() {
     json += "\"roll_deg\":"  + String(rollDeg, 2) + ",";
     for (int i=0;i<4;i++) json += "\"ads1_ch"+String(i)+"\":"+String(adsVoltage1[i],4)+",";
     for (int i=0;i<4;i++) { json += "\"ads2_ch"+String(i)+"\":"+String(adsVoltage2[i],4); if (i<3) json += ","; }
-    json += ",\"uptime_min\":" + String(millis() / 60000.0, 3);
+    json += ",\"uptime_min\":" + String(millis() / 1000.0 / 60.0, 3);
     json += "}";
     server.send(200, "application/json", json);
   });
 
-  // === 快捷調整 ===
+  // --- 增減快速調整 ---
   server.on("/increase_freq",   []() { frequency = fminf(frequency + 0.1f, 3.0f); server.send(200, "ok"); });
   server.on("/decrease_freq",   []() { frequency = fmaxf(frequency - 0.1f, 0.1f); server.send(200, "ok"); });
   server.on("/increase_ajoint", []() { Ajoint    = fminf(Ajoint + 5.0f, 90.0f);  server.send(200, "ok"); });
@@ -76,7 +72,7 @@ inline void setupWebServer() {
   server.on("/increase_L",      []() { L         = fminf(L + 0.05f, 2.0f);       server.send(200, "ok"); });
   server.on("/decrease_L",      []() { L         = fmaxf(L - 0.05f, 0.1f);       server.send(200, "ok"); });
 
-  // === 控制 ===
+  // --- 暫停控制與重置 ---
   server.on("/toggle_pause", []() { isPaused = !isPaused; server.send(200, "ok"); });
   server.on("/reset_all", []() {
     frequency = 0.7f; Ajoint = 30.0f; adsMinValidVoltage = 0.6f; isPaused = false;
@@ -84,17 +80,36 @@ inline void setupWebServer() {
     server.send(200, "ok");
   });
 
-  // === 檔案下載 ===
+  // --- CSV 下載 ---
   server.on("/download", []() {
     if (!SPIFFS.exists("/data.csv")) { server.send(404, "text/plain", "data.csv 不存在"); return; }
     File f = SPIFFS.open("/data.csv", "r");
-    server.streamFile(f, "text/csv; charset=utf-8");
+    server.streamFile(f, "text/csv");
     f.close();
   });
 
-  // === 404 ===
-  server.onNotFound([]() { server.send(404, "text/plain", "Not found"); });
+  // --- ✅ 新增：相機控制代理 ---
+  server.on("/cam_control", []() {
+    if (!server.hasArg("var") || !server.hasArg("val")) {
+      server.send(400, "text/plain", "缺少參數 var 或 val");
+      return;
+    }
+    String var = server.arg("var");
+    String val = server.arg("val");
 
-  // 啟動伺服器
+    HTTPClient http;
+    String url = "http://" + cameraIP + "/control?var=" + var + "&val=" + val;
+    http.begin(url);
+    int httpCode = http.GET();
+    String response = http.getString();
+    http.end();
+
+    if (httpCode > 0) {
+      server.send(200, "text/plain", "OK: " + response);
+    } else {
+      server.send(500, "text/plain", "無法連線到相機");
+    }
+  });
+
   server.begin();
 }

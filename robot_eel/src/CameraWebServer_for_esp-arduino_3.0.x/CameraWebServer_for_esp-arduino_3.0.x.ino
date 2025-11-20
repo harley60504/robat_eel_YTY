@@ -30,6 +30,8 @@ static const int MAX_STREAM_CLIENTS = 1;
 static bool setFrameSizeByName(const String& name) {
   sensor_t* s = esp_camera_sensor_get();
   if (!s) return false;
+
+  // 名稱順序與 Web 下拉選單對齊
   if (name.equalsIgnoreCase("QQVGA")) return s->set_framesize(s, FRAMESIZE_QQVGA) == ESP_OK;
   if (name.equalsIgnoreCase("QVGA"))  return s->set_framesize(s, FRAMESIZE_QVGA ) == ESP_OK;
   if (name.equalsIgnoreCase("VGA"))   return s->set_framesize(s, FRAMESIZE_VGA  ) == ESP_OK;
@@ -39,6 +41,7 @@ static bool setFrameSizeByName(const String& name) {
   if (name.equalsIgnoreCase("UXGA"))  return s->set_framesize(s, FRAMESIZE_UXGA ) == ESP_OK;
   if (name.equalsIgnoreCase("HD"))    return s->set_framesize(s, FRAMESIZE_HD   ) == ESP_OK; // 1280x720
   if (name.equalsIgnoreCase("FHD"))   return s->set_framesize(s, FRAMESIZE_FHD  ) == ESP_OK; // 1920x1080（若感測器支援）
+
   return false;
 }
 
@@ -87,6 +90,7 @@ public:
     s_stream_clients--;
   }
   bool _sourceValid() const override { return true; }
+
   size_t _fillBuffer(uint8_t *buf, size_t maxLen) override {
     size_t out = 0;
     while (out < maxLen) {
@@ -135,6 +139,7 @@ public:
     }
     return out;
   }
+
 private:
   enum State { S_BOUNDARY, S_HEADER, S_DATA, S_TAIL } _state;
   camera_fb_t* _fb; size_t _idx;
@@ -152,14 +157,22 @@ static void connectToWiFi() {
   WiFi.begin(CTRL_AP_SSID, CTRL_AP_PASS);
 
   Serial.printf("📡 連線到 AP：%s", CTRL_AP_SSID);
-  for (int i = 0; i < 60 && WiFi.status() != WL_CONNECTED; ++i) { delay(300); Serial.print("."); }
+  for (int i = 0; i < 60 && WiFi.status() != WL_CONNECTED; ++i) {
+    delay(300);
+    Serial.print(".");
+  }
   Serial.println();
-  if (WiFi.status() != WL_CONNECTED) { Serial.println("❌ 連線失敗"); return; }
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("❌ 連線失敗");
+    return;
+  }
 
   WiFi.setSleep(false);
   WiFi.setTxPower(WIFI_POWER_15dBm);   // 高畫質先保守一點，避免回壓
 
-  if (MDNS.begin(HOSTNAME)) { MDNS.addService("http", "tcp", 80); }
+  if (MDNS.begin(HOSTNAME)) {
+    MDNS.addService("http", "tcp", 80);
+  }
   Serial.printf("✅ IP: %s\n", WiFi.localIP().toString().c_str());
 }
 
@@ -195,7 +208,10 @@ static bool initCam() {
   config.grab_mode    = CAMERA_GRAB_WHEN_EMPTY; // 和官方一致，避免回壓
 
   esp_err_t err = esp_camera_init(&config);
-  if (err != ESP_OK) { Serial.printf("❌ camera init failed: 0x%x\n", err); return false; }
+  if (err != ESP_OK) {
+    Serial.printf("❌ camera init failed: 0x%x\n", err);
+    return false;
+  }
 
   sensor_t *s = esp_camera_sensor_get();
   if (s) {
@@ -215,7 +231,7 @@ static bool initCam() {
 static void startWeb() {
   // 根頁（簡單顯示）
   server.on("/", HTTP_GET, [](AsyncWebServerRequest* req){
-    req->send(200, "text/plain", "ESP32-CAM ready. Try /stream /snapshot /status /control");
+    req->send(200, "text/plain", "ESP32-CAM ready. Try /stream /snapshot /status /control /cam");
   });
 
   // 顯示 IP
@@ -226,33 +242,47 @@ static void startWeb() {
   // 單張快照
   server.on("/snapshot", HTTP_GET, [](AsyncWebServerRequest* req){
     if (!xSemaphoreTake(s_cam_mutex, pdMS_TO_TICKS(500))) {
-      req->send(503, "text/plain", "Camera Busy"); return;
+      req->send(503, "text/plain", "Camera Busy");
+      return;
     }
     camera_fb_t* fb = esp_camera_fb_get();
     xSemaphoreGive(s_cam_mutex);
-    if (!fb) { req->send(503, "text/plain", "Camera Busy"); return; }
+    if (!fb) {
+      req->send(503, "text/plain", "Camera Busy");
+      return;
+    }
     AsyncWebServerResponse* res = req->beginResponse_P(200, "image/jpeg", fb->buf, fb->len);
     req->send(res);
     esp_camera_fb_return(fb);
   });
 
   // 串流（可帶參數 framesize/quality...）
-  server.on("/stream", HTTP_GET, [](AsyncWebServerRequest* req){
+  auto streamHandler = [](AsyncWebServerRequest* req){
     if (s_stream_clients >= MAX_STREAM_CLIENTS) {
-      req->send(503, "text/plain", "Too many clients"); return;
+      req->send(503, "text/plain", "Too many clients");
+      return;
     }
     applyFromRequest(req);
     auto* res = new AsyncJpegStreamResponse();
     s_stream_clients++;
     req->send(res);
-  });
+  };
 
-  // 狀態（JSON）
+  server.on("/stream", HTTP_GET, streamHandler);
+
+  // 新增 /cam：給前端 <img src="/cam"> 使用（與 /stream 同行為）
+  server.on("/cam", HTTP_GET, streamHandler);
+
+  // 相機狀態（JSON）
   server.on("/status", HTTP_GET, [](AsyncWebServerRequest* req){
     sensor_t* s = esp_camera_sensor_get();
-    if (!s) { req->send(500, "text/plain", "no sensor"); return; }
+    if (!s) {
+      req->send(500, "text/plain", "no sensor");
+      return;
+    }
     if (!xSemaphoreTake(s_cam_mutex, pdMS_TO_TICKS(200))) {
-      req->send(503, "text/plain", "Camera Busy"); return;
+      req->send(503, "text/plain", "Camera Busy");
+      return;
     }
     char json[256];
     snprintf(json, sizeof(json),
@@ -268,18 +298,24 @@ static void startWeb() {
   // 控制（官方風格：/control?var=...&val=...）
   server.on("/control", HTTP_GET, [](AsyncWebServerRequest* req){
     if (!req->hasParam("var") || !req->hasParam("val")) {
-      req->send(400, "text/plain", "missing 'var' or 'val'"); return;
+      req->send(400, "text/plain", "missing 'var' or 'val'");
+      return;
     }
     sensor_t* s = esp_camera_sensor_get();
-    if (!s) { req->send(500, "text/plain", "no sensor"); return; }
+    if (!s) {
+      req->send(500, "text/plain", "no sensor");
+      return;
+    }
 
     const String var = req->getParam("var")->value();
     const String val = req->getParam("val")->value();
     const int    vi  = val.toInt();
 
     if (!xSemaphoreTake(s_cam_mutex, pdMS_TO_TICKS(300))) {
-      req->send(503, "text/plain", "Camera Busy"); return;
+      req->send(503, "text/plain", "Camera Busy");
+      return;
     }
+
     esp_err_t err = ESP_OK;
     if      (var == "framesize")  err = setFrameSizeByAny(val) ? ESP_OK : ESP_FAIL;
     else if (var == "quality")    err = s->set_quality(s,    constrain(vi, 10, 63));
@@ -288,28 +324,42 @@ static void startWeb() {
     else if (var == "saturation") err = s->set_saturation(s, constrain(vi, -2,  2));
     else if (var == "hmirror")    err = s->set_hmirror(s,    vi ? 1 : 0);
     else if (var == "vflip")      err = s->set_vflip(s,      vi ? 1 : 0);
-    else { xSemaphoreGive(s_cam_mutex); req->send(404, "text/plain", "unknown var"); return; }
+    else {
+      xSemaphoreGive(s_cam_mutex);
+      req->send(404, "text/plain", "unknown var");
+      return;
+    }
     xSemaphoreGive(s_cam_mutex);
 
     if (err == ESP_OK) req->send(200, "text/plain", "OK");
     else               req->send(500, "text/plain", "ERR");
   });
 
-  server.onNotFound([](AsyncWebServerRequest* r){ r->send(404, "text/plain", "Not found"); });
+  server.onNotFound([](AsyncWebServerRequest* r){
+    r->send(404, "text/plain", "Not found");
+  });
+
   server.begin();
 }
 
 void setup() {
   Serial.begin(115200);
-  Serial.println("\n🚀 ESP32-CAM (AsyncWebServer, /stream + /status + /control)");
+  Serial.println("\n🚀 ESP32-CAM (AsyncWebServer, /stream + /cam + /status + /control)");
 
   if (!initCam()) return;
 
   s_cam_mutex = xSemaphoreCreateMutex();
-  if (!s_cam_mutex) { Serial.println("❌ create cam mutex failed"); return; }
+  if (!s_cam_mutex) {
+    Serial.println("❌ create cam mutex failed");
+    return;
+  }
 
   connectToWiFi();
-  if (WiFi.status() == WL_CONNECTED) startWeb();
+  if (WiFi.status() == WL_CONNECTED) {
+    startWeb();
+  }
 }
 
-void loop() {}
+void loop() {
+  // 一切由 AsyncWebServer 處理，這裡不用做事
+}

@@ -7,205 +7,267 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 <head>
 <meta charset="UTF-8">
 <title>ESP32 LX-224 控制面板</title>
+
 <style>
-  body { font-family:"Noto Sans TC",Arial,sans-serif; background:#f5f5f5; margin:0; padding:0; }
-  h2 { background:#007bff; color:#fff; padding:12px; margin:0; }
-  .container { display:flex; flex-wrap:wrap; justify-content:center; padding:10px; }
-  .card { background:#fff; box-shadow:0 2px 6px rgba(0,0,0,.2); border-radius:12px; padding:15px; margin:10px; width:300px; transition:.3s; }
-  .card:hover { transform:translateY(-3px); }
-  button,input,label,select { margin:5px; padding:6px; font-size:15px; }
-  button { background:#007bff; color:#fff; border:none; border-radius:6px; cursor:pointer; }
-  button:hover { background:#0056b3; }
-  .sensor-table { text-align:left; width:100%; }
-  .sensor-table td { padding:2px 6px; }
-  .row { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
-  .row label { min-width:86px; }
-  .pill { display:inline-block; padding:3px 8px; border:1px solid #ddd; border-radius:999px; font-size:12px; color:#555; }
-  img.stream { width:100%; border-radius:10px; box-shadow:0 0 10px rgba(0,0,0,.4); background:#111; }
-  #cam_stream_card { width:720px; max-width:96%; transition:all .3s; }
-  #fullscreenSnapBtn {
-    position:fixed; bottom:20px; right:20px;
-    background:rgba(0,0,0,0.6); color:#fff; padding:12px 18px;
-    border-radius:50px; border:none; cursor:pointer;
-    font-size:16px; box-shadow:0 3px 8px rgba(0,0,0,.4);
-    display:none; transition:opacity .3s;
-  }
+body {
+  font-family: "Noto Sans TC", Arial, sans-serif;
+  background: #eef1f5;
+  margin: 0;
+}
+
+/* ===== 🔹 全域標題 ===== */
+h2 {
+  margin: 0;
+  padding: 18px;
+  color: #fff;
+  font-size: 26px;
+  text-align: center;
+  background: linear-gradient(90deg,#007bff,#0056b3);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+/* ===== 🧱 卡片群組 ===== */
+.container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 12px;
+  gap: 16px;
+}
+
+/* ===== 📦 卡片 ===== */
+.card {
+  width: 320px;
+  background: white;
+  border-radius: 14px;
+  padding: 14px 18px;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.12);
+  border-top: 5px solid #007bff;
+  transition: 0.25s;
+}
+.card:hover { transform: translateY(-4px); }
+
+/* ===== 🏷 卡片內部標題 ===== */
+.card h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 22px;
+  border-left: 6px solid #007bff;
+  padding-left: 10px;
+}
+
+/* ===== 🎛 按鈕與輸入 ===== */
+button, input, select {
+  font-size: 16px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  margin: 3px 0;
+}
+
+button {
+  border: none;
+  background: #007bff;
+  color: white;
+  cursor: pointer;
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+}
+button:hover { background: #0059c4; }
+
+/* ===== 🟦 感測 & 相機 ===== */
+.sensor-table td { padding: 3px 6px; }
+
+/* ===== 🎥 相機控制區 ===== */
+.cam-control {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin-top: 6px;
+}
+.cam-control label { display: block; }
+
+/* ===== 📱 手機優化 ===== */
+@media (max-width: 480px){
+  .card { width: 90%; }
+}
 </style>
 </head>
 
+
 <body>
-  <h2>🐍 ESP32 LX-224 控制面板</h2>
+<h2>🐍 ESP32 LX-224 控制面板</h2>
 
-  <div class="container">
+<div class="container">
 
-    <!-- 📺 相機串流 -->
-    <div class="card" id="cam_stream_card">
-      <h3>📺 相機串流畫面</h3>
-      <img id="cam_img" class="stream" alt="MJPEG stream">
-      <div class="row" style="margin-top:6px;">
-        <span class="pill">解析度:<span id="st_framesize">-</span></span>
-        <span class="pill">品質:<span id="st_quality">-</span></span>
-        <span class="pill">鏡像:<span id="st_hmirror">-</span></span>
-        <span class="pill">翻轉:<span id="st_vflip">-</span></span>
-        <a class="pill" href="/cam_status" target="_blank">📜 狀態 JSON</a>
-      </div>
-    </div>
+<!-- 🧭 模式切換 -->
+<div class="card">
+  <h3>🧭 模式切換</h3>
+  <button onclick="setMode(0)">Sin 模式</button>
+  <button onclick="setMode(1)">CPG 模式</button>
+  <button onclick="setMode(2)">Offset 模式</button>
+  <p>目前模式：<span id="mode">-</span></p>
 
-    <!-- 🎛️ 相機控制 -->
-    <div class="card">
-      <h3>🎛️ 相機控制設定</h3>
-      <div class="row">
-        <label>解析度</label>
-        <select id="cam_framesize" onchange="updateResLabel()">
-          <option>QQVGA</option><option>QVGA</option><option selected>VGA</option>
-          <option>SVGA</option><option>XGA</option><option>SXGA</option>
-          <option>UXGA</option><option>HD</option><option>FHD</option>
-        </select>
-      </div>
-      <p id="res_label">目前解析度：VGA (640×480)</p>
+  <button onclick="toggleFeedback()">切換回授</button>
+  <p>回授狀態：<span id="feedback">-</span></p>
+</div>
 
-      <div class="row">
-        <label>JPEG 品質</label>
-        <input type="range" id="cam_quality" min="10" max="63" value="10" oninput="cam_qv.value=this.value">
-        <input type="number" id="cam_qv" min="10" max="63" value="10" style="width:70px" oninput="cam_quality.value=this.value">
-      </div>
+<!-- ⚙️ 控制參數 -->
+<div class="card">
+  <h3>⚙️ 參數設定</h3>
 
-      <div class="row">
-        <label><input type="checkbox" id="cam_hmirror"> 水平鏡像</label>
-        <label><input type="checkbox" id="cam_vflip" checked> 垂直翻轉</label>
-      </div>
+  <label>頻率 (Hz):
+    <input type="number" step="0.1" id="freqInput">
+  </label><button onclick="setFrequency()">設定</button>
 
-      <div class="row">
-        <button onclick="camApply()">套用參數</button>
-        <button onclick="camStart()">▶️ 開始串流</button>
-        <button onclick="camStop()">⏹ 停止串流</button>
-        <button onclick="camSnap()">📷 快照</button>
-        <button onclick="toggleFullscreen()">🖥️ 全螢幕</button>
-        <span class="pill">狀態：<span id="cam_state">idle</span></span>
-      </div>
-    </div>
+  <label>振幅 (°):
+    <input type="number" step="1" id="ampInput">
+  </label><button onclick="setAmplitude()">設定</button>
 
-    <!-- 🧭 模式切換 -->
-    <div class="card">
-      <h3>🧭 模式切換</h3>
-      <button onclick="setMode(0)">Sin 模式</button>
-      <button onclick="setMode(1)">CPG 模式</button>
-      <button onclick="setMode(2)">Offset 模式</button><br>
-      <p>目前模式：<span id="mode">-</span></p>
-      <button onclick="toggleFeedback()">切換回授</button>
-      <p>回授狀態：<span id="feedback">-</span></p>
-    </div>
+  <label>λ:
+    <input type="number" step="0.05" id="lambdaInput">
+  </label><button onclick="setLambda()">設定</button>
 
-    <!-- ⚙️ 參數設定 -->
-    <div class="card">
-      <h3>⚙️ 參數設定</h3>
-      <label>頻率 (Hz):</label>
-      <input type="number" id="freqInput" step="0.1" value="0.7"><button onclick="setFrequency()">設定</button><br>
-      <label>振幅 (°):</label>
-      <input type="number" id="ampInput" step="1" value="20"><button onclick="setAmplitude()">設定</button><br>
-      <label>λ (lambda):</label>
-      <input type="number" id="lambdaInput" step="0.05" value="0.7"><button onclick="setLambda()">設定</button><br>
-      <label>L:</label>
-      <input type="number" id="Linput" step="0.05" value="0.85"><button onclick="setL()">設定</button><br>
-      <label>回授權重:</label>
-      <input type="range" id="fbGain" min="0" max="1" step="0.1" value="1" oninput="document.getElementById('fbVal').innerText=this.value">
-      <span id="fbVal">1.0</span><button onclick="setFeedbackGain()">設定</button>
-    </div>
+  <label>L:
+    <input type="number" step="0.05" id="Linput">
+  </label><button onclick="setL()">設定</button>
 
-    <!-- 📡 系統狀態 -->
-    <div class="card" id="status">
-      <h3>📡 系統狀態</h3>
-      <p>頻率：<span id="freq">-</span> Hz</p>
-      <p>振幅：<span id="amp">-</span> °</p>
-      <p>λ：<span id="lambda">-</span></p>
-      <p>L：<span id="L">-</span></p>
-      <p>回授權重：<span id="fbGainStatus">-</span></p>
-    </div>
+  <label>回授權重:
+    <input type="range" id="fbGain" min="0" max="1" step="0.1"
+    oninput="document.getElementById('fbVal').innerText=this.value">
+  </label>
+  <span id="fbVal">1.0</span>
+  <button onclick="setFeedbackGain()">設定</button>
+</div>
 
-    <!-- 📈 ADXL355 -->
-    <div class="card">
-      <h3>📈 ADXL355 加速度計</h3>
-      <table class="sensor-table">
-        <tr><td>X (g):</td><td><span id="ax">-</span></td></tr>
-        <tr><td>Y (g):</td><td><span id="ay">-</span></td></tr>
-        <tr><td>Z (g):</td><td><span id="az">-</span></td></tr>
-        <tr><td>Pitch (°):</td><td><span id="pitch">-</span></td></tr>
-        <tr><td>Roll (°):</td><td><span id="roll">-</span></td></tr>
-      </table>
-    </div>
+<!-- 📡 狀態監控 -->
+<div class="card" id="status">
+  <h3>📡 系統狀態</h3>
+  <p>頻率：<span id="freq">-</span> Hz</p>
+  <p>振幅：<span id="amp">-</span>°</p>
+  <p>λ：<span id="lambda">-</span></p>
+  <p>L：<span id="L">-</span></p>
+  <p>回授權重：<span id="fbGainStatus">-</span></p>
+</div>
 
-    <!-- 🔌 ADS1115 -->
-    <div class="card">
-      <h3>🔌 ADS1115 8通道電壓</h3>
-      <table class="sensor-table">
-        <tr><td>ADS1 A0:</td><td><span id="ads1_0">-</span> V</td></tr>
-        <tr><td>ADS1 A1:</td><td><span id="ads1_1">-</span> V</td></tr>
-        <tr><td>ADS1 A2:</td><td><span id="ads1_2">-</span> V</td></tr>
-        <tr><td>ADS1 A3:</td><td><span id="ads1_3">-</span> V</td></tr>
-        <tr><td>ADS2 A0:</td><td><span id="ads2_0">-</span> V</td></tr>
-        <tr><td>ADS2 A1:</td><td><span id="ads2_1">-</span> V</td></tr>
-        <tr><td>ADS2 A2:</td><td><span id="ads2_2">-</span> V</td></tr>
-        <tr><td>ADS2 A3:</td><td><span id="ads2_3">-</span> V</td></tr>
-      </table>
-    </div>
+<!-- 📈 ADXL355 -->
+<div class="card">
+  <h3>📈 ADXL355 加速度</h3>
+  <table class="sensor-table">
+    <tr><td>X:</td><td><span id="ax">-</span> g</td></tr>
+    <tr><td>Y:</td><td><span id="ay">-</span> g</td></tr>
+    <tr><td>Z:</td><td><span id="az">-</span> g</td></tr>
+    <tr><td>Pitch:</td><td><span id="pitch">-</span>°</td></tr>
+    <tr><td>Roll:</td><td><span id="roll">-</span>°</td></tr>
+  </table>
+</div>
 
-    <!-- 🕒 系統控制 -->
-    <div class="card">
-      <h3>🕒 系統控制</h3>
-      <p>運作時間：<span id="uptime">0:00</span></p>
-      <button onclick="togglePause()">⏸ 暫停 / ▶️ 繼續</button>
-      <button onclick="downloadCSV()">📥 下載 CSV</button>
-    </div>
+<!-- 🔌 ADS1115 -->
+<div class="card">
+  <h3>🔌 ADS1115 電壓</h3>
+  <table class="sensor-table">
+    <tr><td>A1-0:</td><td><span id="ads1_0">-</span></td></tr>
+    <tr><td>A1-1:</td><td><span id="ads1_1">-</span></td></tr>
+    <tr><td>A1-2:</td><td><span id="ads1_2">-</span></td></tr>
+    <tr><td>A1-3:</td><td><span id="ads1_3">-</span></td></tr>
+    <tr><td>A2-0:</td><td><span id="ads2_0">-</span></td></tr>
+    <tr><td>A2-1:</td><td><span id="ads2_1">-</span></td></tr>
+    <tr><td>A2-2:</td><td><span id="ads2_2">-</span></td></tr>
+    <tr><td>A2-3:</td><td><span id="ads2_3">-</span></td></tr>
+  </table>
+</div>
+
+<!-- 📷 相機畫面 -->
+<div class="card">
+  <h3>📷 XIAO ESP32S3 相機</h3>
+  <img src="/cam" style="width:100%;border-radius:10px;">
+</div>
+
+<!-- 🎛 相機參數調整 -->
+<div class="card">
+  <h3>🎛 相機控制</h3>
+
+  <div class="cam-control">
+    <label>解析度：
+      <select onchange="sendCam('framesize',this.value)">
+        <option value="10">UXGA</option>
+        <option value="9">SXGA</option>
+        <option value="8" selected>SVGA</option>
+        <option value="6">VGA</option>
+        <option value="5">CIF</option>
+        <option value="3">QVGA</option>
+      </select>
+    </label>
+
+    <label>畫質：
+      <input type="range" min="4" max="63" value="10"
+      oninput="sendCam('quality', this.value)">
+    </label>
+
+    <label>亮度：
+      <input type="range" min="-2" max="2" value="0"
+      oninput="sendCam('brightness', this.value)">
+    </label>
+
+    <label>對比：
+      <input type="range" min="-2" max="2" value="0"
+      oninput="sendCam('contrast', this.value)">
+    </label>
+
+    <label>飽和：
+      <input type="range" min="-2" max="2" value="0"
+      oninput="sendCam('saturation', this.value)">
+    </label>
+
+    <button onclick="sendCam('aec',1)">🌞 自動曝光</button>
+    <button onclick="sendCam('aec',0)">🌑 關閉 AE</button>
+    <button onclick="sendCam('awb',1)">🎨 自動白平衡</button>
+    <button onclick="sendCam('awb',0)">❌ 關閉 AWB</button>
   </div>
+</div>
 
-  <button id="fullscreenSnapBtn" onclick="exitFullscreen()">❌ 退出全螢幕</button>
+<!-- 🕒 系統控制 -->
+<div class="card">
+  <h3>🕒 系統控制</h3>
+  <p>運作時間：<span id="uptime">00:00</span></p>
+  <button onclick="togglePause()">⏸ 暫停 / ▶️ 繼續</button>
+  <button onclick="downloadCSV()">📥 下載 CSV</button>
+</div>
 
-  <script>
-    const camImg=document.getElementById('cam_img');
-    const stateEl=document.getElementById('cam_state');
-    const fsBtn=document.getElementById('fullscreenSnapBtn');
-    const resLabel=document.getElementById('res_label');
-    const resMap={QQVGA:"160×120",QVGA:"320×240",VGA:"640×480",SVGA:"800×600",XGA:"1024×768",SXGA:"1280×1024",UXGA:"1600×1200",HD:"1280×720",FHD:"1920×1080"};
+</div> <!-- container END -->
 
-    function updateResLabel(){
-      const v=document.getElementById('cam_framesize').value;
-      resLabel.textContent=`目前解析度：${v} (${resMap[v]||"-"})`;
-    }
+<script>
+function sendCam(v,val){ fetch(`/cam_control?var=${v}&val=${val}`); }
+function setMode(m){ fetch('/setMode?m='+m).then(r=>r.text()).then(t=>mode.innerText=t); }
+function toggleFeedback(){ fetch('/toggleFeedback').then(r=>r.text()).then(t=>feedback.innerText=t); }
+function setFrequency(){ fetch('/setFrequency?f='+freqInput.value); }
+function setAmplitude(){ fetch('/setAmplitude?a='+ampInput.value); }
+function setLambda(){ fetch('/setLambda?lambda='+lambdaInput.value); }
+function setL(){ fetch('/setL?L='+Linput.value); }
+function setFeedbackGain(){ fetch('/setFeedbackGain?g='+fbGain.value); }
+function togglePause(){ fetch('/toggle_pause'); }
+function downloadCSV(){ location.href='/download'; }
 
-    function camSet(v,val){return fetch('/cam_control?var='+v+'&val='+val).then(r=>r.text());}
-    function camApply(){
-      const fs=document.getElementById('cam_framesize').value;
-      const q=document.getElementById('cam_quality').value;
-      const hm=document.getElementById('cam_hmirror').checked?1:0;
-      const vf=document.getElementById('cam_vflip').checked?1:0;
-      stateEl.textContent='applying...';
-      Promise.resolve().then(()=>camSet('framesize',fs))
-      .then(()=>camSet('quality',q))
-      .then(()=>camSet('hmirror',hm))
-      .then(()=>camSet('vflip',vf))
-      .then(()=>{camRestart();stateEl.textContent='ok';})
-      .catch(e=>{alert('設定失敗:'+e);stateEl.textContent='error';});
-    }
-    function camStart(){camImg.onerror=()=>{stateEl.textContent='reconnect...';setTimeout(()=>camStart(),800);};camImg.onload=()=>{stateEl.textContent='streaming';};camImg.src='/cam?ts='+Date.now();}
-    function camStop(){camImg.src='';stateEl.textContent='stopped';}
-    function camRestart(){camStop();setTimeout(camStart,200);}
-    function camSnap(){window.open('/cam_snapshot','_blank');}
+function refreshStatus(){
+  fetch('/status').then(r=>r.json()).then(j=>{
+    freq.innerText=j.frequency.toFixed(2);
+    amp.innerText=j.amplitude.toFixed(1);
+    lambda.innerText=j.lambda.toFixed(2);
+    L.innerText=j.L.toFixed(2);
+    fbGainStatus.innerText=j.fbGain.toFixed(2);
+    ax.innerText=j.adxl_x_g.toFixed(3);
+    ay.innerText=j.adxl_y_g.toFixed(3);
+    az.innerText=j.adxl_z_g.toFixed(3);
+    pitch.innerText=j.pitch_deg.toFixed(2);
+    roll.innerText=j.roll_deg.toFixed(2);
+    for(let i=0;i<4;i++) eval(`ads1_${i}.innerText=j.ads1_ch${i}.toFixed(3)`);
+    for(let i=0;i<4;i++) eval(`ads2_${i}.innerText=j.ads2_ch${i}.toFixed(3)`);
+    uptime.innerText = j.uptime_min.toFixed(1)+" min";
+  });
+}
+setInterval(refreshStatus,1000);
+</script>
 
-    function toggleFullscreen(){
-      const camCard=document.getElementById('cam_stream_card');
-      if(!document.fullscreenElement){
-        camCard.requestFullscreen().then(()=>{fsBtn.style.display='block';});
-      }else{
-        document.exitFullscreen().then(()=>{fsBtn.style.display='none';});
-      }
-    }
-    function exitFullscreen(){
-      if(document.fullscreenElement) document.exitFullscreen();
-      fsBtn.style.display='none';
-    }
-
-    window.addEventListener('load',()=>{updateResLabel();camStart();});
-  </script>
 </body>
 </html>
 )rawliteral";

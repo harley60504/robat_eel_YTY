@@ -1,0 +1,407 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by Stephen Brawner (brawner@gmail.com) 
+     Commit Version: 1.5.1-0-g916b5db  Build Version: 1.5.7152.31018
+     For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
+<robot
+  name="bus_assembly_4">
+  <mujoco>
+  <compiler 
+    meshdir="../meshes/" 
+    balanceinertia="true" 
+    discardvisual="false"
+    autolimits="true"/>
+  <option timestep="0.001" iterations="50" tolerance="1e-10" solver="Newton"/>
+</mujoco>
+
+<custom>
+  <numeric name="unfiltered_contact" data="0"/> 
+</custom>
+  <link
+    name="base_link">
+    <inertial>
+      <origin
+        xyz="0.0768006231048127 -0.107 -0.0021212713197274"
+        rpy="0 0 0" />
+      <mass
+        value="0.0714886173099694" />
+      <inertia
+        ixx="3.48906593535471E-05"
+        ixy="-7.99980768861081E-22"
+        ixz="3.35859819490751E-21"
+        iyy="5.69343997438362E-05"
+        iyz="2.71139375886072E-22"
+        izz="5.80523540227651E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://bus_assembly_4/meshes/base_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://bus_assembly_4/meshes/base_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <link
+    name="link1">
+    <inertial>
+      <origin
+        xyz="-0.0144943377294202 3.40932699910076E-08 0.0168295720843948"
+        rpy="0 0 0" />
+      <mass
+        value="0.0861353887155759" />
+      <inertia
+        ixx="1.99776586952403E-05"
+        ixy="1.72087942607274E-10"
+        ixz="5.06437416027513E-08"
+        iyy="4.35086698833605E-05"
+        iyz="-6.5121250199106E-13"
+        izz="4.97203166390564E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://bus_assembly_4/meshes/link1.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://bus_assembly_4/meshes/link1.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="joint1"
+    type="revolute">
+    <origin
+      xyz="-0.00278 -0.09 -0.0021213"
+      rpy="1.5708 0 0" />
+    <parent
+      link="base_link" />
+    <child
+      link="link1" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="-2.094"
+      upper="2.094"
+      effort="1.5"
+      velocity="1" />
+  </joint>
+  <link
+    name="link2">
+    <inertial>
+      <origin
+        xyz="-0.0144943377294202 3.40932699897066E-08 0.0168295720843948"
+        rpy="0 0 0" />
+      <mass
+        value="0.0861353887155759" />
+      <inertia
+        ixx="1.99776586952403E-05"
+        ixy="1.72087942606504E-10"
+        ixz="5.06437416027533E-08"
+        iyy="4.35086698833605E-05"
+        iyz="-6.51212501844561E-13"
+        izz="4.97203166390564E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://bus_assembly_4/meshes/link2.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://bus_assembly_4/meshes/link2.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="joint2"
+    type="revolute">
+    <origin
+      xyz="-0.0747 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="link1" />
+    <child
+      link="link2" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="-2.094"
+      upper="2.094"
+      effort="1.5"
+      velocity="1" />
+  </joint>
+  <link
+    name="link3">
+    <inertial>
+      <origin
+        xyz="-0.0144943377294202 3.4093269951109E-08 0.0168295720843947"
+        rpy="0 0 0" />
+      <mass
+        value="0.0861353887155758" />
+      <inertia
+        ixx="1.99776586952403E-05"
+        ixy="1.72087942607616E-10"
+        ixz="5.06437416027537E-08"
+        iyy="4.35086698833605E-05"
+        iyz="-6.51212501168344E-13"
+        izz="4.97203166390564E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://bus_assembly_4/meshes/link3.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://bus_assembly_4/meshes/link3.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="joint3"
+    type="revolute">
+    <origin
+      xyz="-0.0747 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="link2" />
+    <child
+      link="link3" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="-2.094"
+      upper="2.094"
+      effort="1.5"
+      velocity="1" />
+  </joint>
+  <link
+    name="link4">
+    <inertial>
+      <origin
+        xyz="-0.0144943377294201 3.40932699866708E-08 0.0168295720843948"
+        rpy="0 0 0" />
+      <mass
+        value="0.0861353887155759" />
+      <inertia
+        ixx="1.99776586952403E-05"
+        ixy="1.72087942604639E-10"
+        ixz="5.06437416027523E-08"
+        iyy="4.35086698833605E-05"
+        iyz="-6.51212501103064E-13"
+        izz="4.97203166390564E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://bus_assembly_4/meshes/link4.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://bus_assembly_4/meshes/link4.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="joint4"
+    type="revolute">
+    <origin
+      xyz="-0.0747 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="link3" />
+    <child
+      link="link4" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="-2.094"
+      upper="2.094"
+      effort="1.5"
+      velocity="1" />
+  </joint>
+  <link
+    name="link5">
+    <inertial>
+      <origin
+        xyz="-0.01449433772942 3.40932699910076E-08 0.0168295720843947"
+        rpy="0 0 0" />
+      <mass
+        value="0.0861353887155759" />
+      <inertia
+        ixx="1.99776586952403E-05"
+        ixy="1.72087942607566E-10"
+        ixz="5.06437416027528E-08"
+        iyy="4.35086698833605E-05"
+        iyz="-6.51212500985005E-13"
+        izz="4.97203166390564E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://bus_assembly_4/meshes/link5.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://bus_assembly_4/meshes/link5.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="joint5"
+    type="revolute">
+    <origin
+      xyz="-0.0747 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="link4" />
+    <child
+      link="link5" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="-2.094"
+      upper="2.094"
+      effort="1.5"
+      velocity="1" />
+  </joint>
+  <link
+    name="link6">
+    <inertial>
+      <origin
+        xyz="-0.0197353951043699 -7.68143863065507E-07 0.0168109596653357"
+        rpy="0 0 0" />
+      <mass
+        value="0.0915951127437803" />
+      <inertia
+        ixx="1.94082875231717E-05"
+        ixy="-1.01507681390389E-17"
+        ixz="-6.2417454830656E-09"
+        iyy="4.01857882657391E-05"
+        iyz="-1.75447185032778E-15"
+        izz="4.72146296607697E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://bus_assembly_4/meshes/link6.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://bus_assembly_4/meshes/link6.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="joint6"
+    type="revolute">
+    <origin
+      xyz="-0.0747 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="link5" />
+    <child
+      link="link6" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="-2.094"
+      upper="2.094"
+      effort="1.5"
+      velocity="1" />
+  </joint>
+</robot>

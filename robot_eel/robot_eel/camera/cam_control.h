@@ -2,7 +2,7 @@
 #define CAM_CONTROL_H
 
 #include <WebSocketsServer.h>
-
+void startControlRx();
 void initControlWS(WebSocketsServer &ws);
 
 #endif

@@ -14,6 +14,10 @@ class _CameraStreamWSState extends State<CameraStreamWS> {
   WebSocket? socket;
   Uint8List? frame;
 
+  int frameCount = 0;
+  double fps = 0;
+  DateTime lastTime = DateTime.now();
+
   @override
   void initState() {
     super.initState();
@@ -23,8 +27,29 @@ class _CameraStreamWSState extends State<CameraStreamWS> {
 
     socket!.onMessage.listen((event) {
       final data = event.data as ByteBuffer;
-      setState(() => frame = Uint8List.view(data));
+
+      setState(() {
+        frame = Uint8List.view(data);
+      });
+
+      _calcFPS();     // 計算 FPS
     });
+  }
+
+  void _calcFPS() {
+    frameCount++;
+
+    final now = DateTime.now();
+    final diff = now.difference(lastTime).inMilliseconds;
+
+    if (diff >= 1000) {
+      fps = frameCount * 1000 / diff;
+      frameCount = 0;
+      lastTime = now;
+
+      // Debug 印出 FPS
+      debugPrint("FPS = ${fps.toStringAsFixed(1)}");
+    }
   }
 
   @override
@@ -34,21 +59,32 @@ class _CameraStreamWSState extends State<CameraStreamWS> {
   }
 
   @override
-  @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 4,
-      clipBehavior: Clip.hardEdge,       // 確保畫面不溢出
-      child: AspectRatio(
-        aspectRatio: 4 / 3,              // 640x480 = 4:3
-        child: frame == null
+    return Stack(
+      children: [
+
+        frame == null
             ? const Center(child: Text("Waiting…"))
             : Image.memory(
                 frame!,
-                fit: BoxFit.cover,       // 剛好填滿卡片
                 gaplessPlayback: true,
+                fit: BoxFit.cover,
               ),
-      ),
+
+        Positioned(
+          top: 6,
+          left: 6,
+          child: Container(
+            padding: const EdgeInsets.all(4),
+            color: Colors.black54,
+            child: Text(
+              "FPS: ${fps.toStringAsFixed(1)}",
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+        ),
+
+      ],
     );
   }
 }

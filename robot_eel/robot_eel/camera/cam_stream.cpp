@@ -1,9 +1,9 @@
 #include <esp_camera.h>
 #include "cam_stream.h"
 
-void initStreamWS(WebSocketsServer &wsServer)
+void initStreamWS(WebSocketsServer &ws)
 {
-    wsServer.onEvent([](uint8_t num, WStype_t type, uint8_t *payload, size_t len){
+    ws.onEvent([](uint8_t num, WStype_t type, uint8_t *payload, size_t len){
         switch(type)
         {
             case WStype_CONNECTED:
@@ -19,19 +19,18 @@ void initStreamWS(WebSocketsServer &wsServer)
         }
     });
 
-    Serial.println("WebSocket stream enabled at ws://<IP>:82");
+    Serial.println("WebSocket stream enabled at ws://<IP>:81");
 }
 
 
-void sendCameraFrame(WebSocketsServer &wsServer)
+void sendCameraFrame(WebSocketsServer &ws)
 {
-    if (!wsServer.connectedClients()) return;
+    if (!ws.connectedClients()) return;
 
     camera_fb_t *fb = esp_camera_fb_get();
     if (!fb) return;
 
-    wsServer.broadcastBIN(fb->buf, fb->len);
+    ws.broadcastBIN(fb->buf, fb->len);
 
     esp_camera_fb_return(fb);
-    delay(5);
 }

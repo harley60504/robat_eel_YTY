@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../api/esp_api.dart';   // 你說這個是 WebSocket 版，所以保留它
+import '../api/esp_api.dart';
 
 class CameraControlPanel extends StatefulWidget {
   const CameraControlPanel({super.key});
@@ -9,11 +9,9 @@ class CameraControlPanel extends StatefulWidget {
 }
 
 class _CameraControlPanelState extends State<CameraControlPanel> {
-  
   String resolution = "SVGA";
   double quality = 10;
 
-  /// ESP32 cam 的 frame size 對照表
   final Map<String, int> frameSizeMap = {
     "UXGA": 11,
     "SXGA": 10,
@@ -21,22 +19,33 @@ class _CameraControlPanelState extends State<CameraControlPanel> {
     "VGA": 6,
   };
 
-  /// 套用解析度
-  void applyResolution(String value){
-    setState(() => resolution = value);
+  @override
+  void initState() {
+    super.initState();
 
-    WsControlApi.setCameraParam({
-      "framesize": frameSizeMap[value]!,
+    WsControlApi.stream().listen((msg) {
+      if (msg["type"] == "camera_param") {
+        setState(() {
+          if (msg.containsKey("framesize")) {
+            final rev = {for (final e in frameSizeMap.entries) e.value: e.key};
+
+            resolution = rev[msg["framesize"]] ?? resolution;
+          }
+
+          if (msg.containsKey("quality")) {
+            quality = (msg["quality"] ?? quality).toDouble();
+          }
+        });
+      }
     });
   }
 
-  /// 套用畫質
-  void applyQuality(double v){
-    setState(() => quality = v);
+  void applyResolution(String value) {
+    WsControlApi.setCameraParam({"framesize": frameSizeMap[value]!});
+  }
 
-    WsControlApi.setCameraParam({
-      "quality": v.toInt(),
-    });
+  void applyQuality(double v) {
+    WsControlApi.setCameraParam({"quality": v.toInt()});
   }
 
   @override
@@ -47,19 +56,16 @@ class _CameraControlPanelState extends State<CameraControlPanel> {
         padding: const EdgeInsets.all(16),
 
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
-
           children: [
-
             const Text("相機控制", style: TextStyle(fontSize: 20)),
             const SizedBox(height: 18),
 
-            const Text("解析度 Resolution"),
-            DropdownButton<String>(
+            const Text("解析度"),
+            DropdownButton(
               value: resolution,
               items: frameSizeMap.keys
-                  .map((v) => DropdownMenuItem(value: v, child: Text(v)))
+                  .map((k) => DropdownMenuItem(value: k, child: Text(k)))
                   .toList(),
               onChanged: (v) => applyResolution(v!),
             ),

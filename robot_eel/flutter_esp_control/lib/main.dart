@@ -28,11 +28,7 @@ class MainLayout extends StatefulWidget {
 class _MainLayoutState extends State<MainLayout> {
   int _selectedIndex = 0;
 
-  final _pages = const [
-    DashboardPage(),
-    CameraPage(),
-    WiFiPage(),
-  ];
+  final _pages = const [DashboardPage(), CameraPage(), WiFiPage()];
 
   @override
   Widget build(BuildContext context) {
@@ -53,26 +49,29 @@ class _MainLayoutState extends State<MainLayout> {
   }
 
   Widget buildBottomBar() => BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: (i) => setState(() => _selectedIndex = i),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: "Dashboard"),
-          BottomNavigationBarItem(icon: Icon(Icons.camera_alt), label: "Camera"),
-          BottomNavigationBarItem(icon: Icon(Icons.wifi), label: "WiFi"),
-        ],
-      );
+    currentIndex: _selectedIndex,
+    onTap: (i) => setState(() => _selectedIndex = i),
+    items: const [
+      BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: "Dashboard"),
+      BottomNavigationBarItem(icon: Icon(Icons.camera_alt), label: "Camera"),
+      BottomNavigationBarItem(icon: Icon(Icons.wifi), label: "WiFi"),
+    ],
+  );
 
   Widget buildSidebar() => NavigationRail(
-        selectedIndex: _selectedIndex,
-        onDestinationSelected: (i) => setState(() => _selectedIndex = i),
-        labelType: NavigationRailLabelType.all,
-        destinations: const [
-          NavigationRailDestination(
-              icon: Icon(Icons.dashboard), label: Text("Dashboard")),
-          NavigationRailDestination(
-              icon: Icon(Icons.camera_alt), label: Text("Camera")),
-          NavigationRailDestination(
-              icon: Icon(Icons.wifi), label: Text("WiFi")),
-        ],
-      );
+    selectedIndex: _selectedIndex,
+    onDestinationSelected: (i) => setState(() => _selectedIndex = i),
+    labelType: NavigationRailLabelType.all,
+    destinations: const [
+      NavigationRailDestination(
+        icon: Icon(Icons.dashboard),
+        label: Text("Dashboard"),
+      ),
+      NavigationRailDestination(
+        icon: Icon(Icons.camera_alt),
+        label: Text("Camera"),
+      ),
+      NavigationRailDestination(icon: Icon(Icons.wifi), label: Text("WiFi")),
+    ],
+  );
 }

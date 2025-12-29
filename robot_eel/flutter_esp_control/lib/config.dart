@@ -1,4 +1,6 @@
 class ApiConfig {
-  static String wsControlUrl = "ws://192.168.0.199:82";
-  static String wsStreamUrl  = "ws://192.168.0.199:82/stream";
+  static const String host = "192.168.50.158";
+
+  static const String wsControlUrl = "ws://$host:82";
+  static const String wsStreamUrl = "ws://$host:81";
 }

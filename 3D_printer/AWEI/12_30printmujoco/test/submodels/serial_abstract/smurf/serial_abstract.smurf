@@ -1,0 +1,10 @@
+{
+  "additional_files": {},
+  "description": "",
+  "files": [
+    "..\\urdf\\serial_abstract.urdf",
+    "serial_abstract_joints.yml",
+    "serial_abstract_links.yml"
+  ],
+  "modelname": "serial_abstract"
+}

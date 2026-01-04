@@ -1,0 +1,7 @@
+Instantiated with filepath=None->None, scale=[1.0, 1.0, 1.0], mesh=<bpy_struct, Mesh("link6_visual") at 0x000002224F2E3EB8>, meshname=link6_visual, material=None, mesh_orientation=None, {}
+->trying export of <bpy_struct, Mesh("link6_visual") at 0x000002224F2E3EB8> to C:\Users\AWEI\Documents\GitHub\robot_eel_YTY\3D_printer\AWEI\12_30printmujoco\test\meshes\bobj\link6_visual.bobj
+->wrote bobj to C:\Users\AWEI\Documents\GitHub\robot_eel_YTY\3D_printer\AWEI\12_30printmujoco\test\meshes\bobj\link6_visual.bobj from bpy_types.Mesh
+->trying export of <bpy_struct, Mesh("link6_visual") at 0x000002224F2E3EB8> to C:\Users\AWEI\Documents\GitHub\robot_eel_YTY\3D_printer\AWEI\12_30printmujoco\test\meshes\obj\link6_visual.obj
+->wrote obj to C:\Users\AWEI\Documents\GitHub\robot_eel_YTY\3D_printer\AWEI\12_30printmujoco\test\meshes\obj\link6_visual.obj from bpy_types.Mesh
+->trying export of <bpy_struct, Mesh("link6_visual") at 0x000002224F2E3EB8> to C:\Users\AWEI\Documents\GitHub\robot_eel_YTY\3D_printer\AWEI\12_30printmujoco\test\meshes\stl\link6_visual.stl
+->wrote stl to C:\Users\AWEI\Documents\GitHub\robot_eel_YTY\3D_printer\AWEI\12_30printmujoco\test\meshes\stl\link6_visual.stl from bpy_types.Mesh

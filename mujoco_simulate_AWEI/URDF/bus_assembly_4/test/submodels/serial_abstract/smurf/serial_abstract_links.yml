@@ -1,0 +1,49 @@
+{
+  "links": [
+    {
+      "collisions": [],
+      "name": "link4",
+      "scale": 1.0,
+      "visuals": []
+    },
+    {
+      "collisions": [],
+      "name": "link5",
+      "scale": 1.0,
+      "visuals": []
+    },
+    {
+      "collisions": [],
+      "name": "link2",
+      "scale": 1.0,
+      "visuals": []
+    },
+    {
+      "collisions": [],
+      "name": "link1",
+      "scale": 1.0,
+      "visuals": []
+    },
+    {
+      "collisions": [],
+      "name": "link6",
+      "scale": 1.0,
+      "visuals": []
+    },
+    {
+      "collisions": [],
+      "model": {
+        "name": "test"
+      },
+      "name": "base_link",
+      "scale": 1.0,
+      "visuals": []
+    },
+    {
+      "collisions": [],
+      "name": "link3",
+      "scale": 1.0,
+      "visuals": []
+    }
+  ]
+}

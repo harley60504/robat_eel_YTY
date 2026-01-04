@@ -1,0 +1,11 @@
+{
+  "collisions": [
+    {
+      "geometry": "box",
+      "link": "link6",
+      "name": "link6_collision",
+      "primitive": [],
+      "primitives": []
+    }
+  ]
+}

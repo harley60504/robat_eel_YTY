@@ -1,0 +1,12 @@
+{
+  "additional_files": {},
+  "description": "",
+  "files": [
+    "..\\urdf\\test.urdf",
+    "test_collisions.yml",
+    "test_joints.yml",
+    "test_links.yml",
+    "test_visuals.yml"
+  ],
+  "modelname": "test"
+}

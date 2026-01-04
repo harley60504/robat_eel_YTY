@@ -1,0 +1,77 @@
+{
+  "links": [
+    {
+      "collisions": [
+        "base_link_collision"
+      ],
+      "model": {
+        "name": "test"
+      },
+      "name": "base_link",
+      "scale": 1.0,
+      "visuals": [
+        "base_link_visual"
+      ]
+    },
+    {
+      "collisions": [
+        "link1_collision"
+      ],
+      "name": "link1",
+      "scale": 1.0,
+      "visuals": [
+        "link1_visual"
+      ]
+    },
+    {
+      "collisions": [
+        "link2_collision"
+      ],
+      "name": "link2",
+      "scale": 1.0,
+      "visuals": [
+        "link2_visual"
+      ]
+    },
+    {
+      "collisions": [
+        "link3_collision"
+      ],
+      "name": "link3",
+      "scale": 1.0,
+      "visuals": [
+        "link3_visual"
+      ]
+    },
+    {
+      "collisions": [
+        "link4_collision"
+      ],
+      "name": "link4",
+      "scale": 1.0,
+      "visuals": [
+        "link4_visual"
+      ]
+    },
+    {
+      "collisions": [
+        "link5_collision"
+      ],
+      "name": "link5",
+      "scale": 1.0,
+      "visuals": [
+        "link5_visual"
+      ]
+    },
+    {
+      "collisions": [
+        "link6_collision"
+      ],
+      "name": "link6",
+      "scale": 1.0,
+      "visuals": [
+        "link6_visual"
+      ]
+    }
+  ]
+}

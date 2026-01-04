@@ -1,0 +1,5 @@
+Instantiated with filepath=None->None, scale=[1.0, 1.0, 1.0], mesh=<bpy_struct, Mesh("base_link_visual") at 0x000002224F6E6F28>, meshname=base_link_visual, material=None, mesh_orientation=None, {}
+->trying export of <bpy_struct, Mesh("base_link_visual") at 0x000002224F6E6F28> to C:\Users\AWEI\Documents\GitHub\robot_eel_YTY\3D_printer\AWEI\12_30printmujoco\test\meshes\bobj\base_link_visual.bobj
+->wrote bobj to C:\Users\AWEI\Documents\GitHub\robot_eel_YTY\3D_printer\AWEI\12_30printmujoco\test\meshes\bobj\base_link_visual.bobj from bpy_types.Mesh
+->trying export of <bpy_struct, Mesh("base_link_visual") at 0x000002224F6E6F28> to C:\Users\AWEI\Documents\GitHub\robot_eel_YTY\3D_printer\AWEI\12_30printmujoco\test\meshes\obj\base_link_visual.obj
+->wrote obj to C:\Users\AWEI\Documents\GitHub\robot_eel_YTY\3D_printer\AWEI\12_30printmujoco\test\meshes\obj\base_link_visual.obj from bpy_types.Mesh

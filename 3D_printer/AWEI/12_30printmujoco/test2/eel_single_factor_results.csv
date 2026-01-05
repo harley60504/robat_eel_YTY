@@ -1,0 +1,12 @@
+Time,Tag,Amp,Freq,Step,AvgSpeed,Y_Offset,Valid
+16:35:59,Sweep_Freq,0.5,0.5,0.5,0.2239,0.06,True
+16:38:08,Sweep_Freq,0.5,0.6,0.5,0.2702,0.18,True
+16:39:44,Sweep_Freq,0.5,0.7,0.5,0.3166,0.34,True
+16:41:14,Sweep_Freq,0.5,0.8,0.5,0.3632,0.46,True
+16:42:35,Sweep_Freq,0.5,0.9,0.5,0.4109,0.57,True
+16:43:47,Sweep_Freq,0.5,1.0,0.5,0.4589,0.54,True
+16:44:52,Sweep_Freq,0.5,1.1,0.5,0.5074,0.49,True
+16:45:53,Sweep_Freq,0.5,1.2,0.5,0.5566,0.40,True
+16:46:48,Sweep_Freq,0.5,1.3,0.5,0.6066,0.29,True
+16:47:40,Sweep_Freq,0.5,1.4,0.5,0.6580,0.12,True
+16:48:28,Sweep_Freq,0.5,1.5,0.5,0.7102,0.03,True

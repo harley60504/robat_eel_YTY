@@ -32,16 +32,16 @@
     <geom name="wall_right" type="box" pos="0 -2 0" size="5 0.1 0.5" rgba="0 0.5 0.8 0.2" contype="1" conaffinity="1"/> 
     <geom name="water_volume" type="box" pos="0 0 -0.25" size="4.95 1.95 0.27" material="water_visual_mat" contype="0" conaffinity="0" group="1"/>
     <!-- obstacles on water surface (fixed) -->
-    <geom name="buoy_1" type="cylinder" pos="1.0 0.6 0.02" size="0.07 0.25"
+    <!-- <geom name="buoy_1" type="cylinder" pos="1.0 0.6 0.02" size="0.07 0.25"
       rgba="1 0.6 0 1" contype="1" conaffinity="1"/>
 
     <geom name="buoy_2" type="cylinder" pos="2.0 -0.4 0.02" size="0.07 0.25"
       rgba="1 0.6 0 1" contype="1" conaffinity="1"/>
 
     <geom name="barrier" type="box" pos="0.5 0.0 0.02" size="0.15 1.2 0.08"
-      rgba="0.9 0.2 0.2 1" contype="1" conaffinity="1"/>
+      rgba="0.9 0.2 0.2 1" contype="1" conaffinity="1"/> -->
     <!-- head -->
-    <body name="base_link" pos="0 0 0">
+    <body name="base_link" pos="-4 0 0">
       <!-- <freejoint name="root"/> -->
        <joint type="slide" axis="1 0 0" name="move_x"/> <joint type="slide" axis="0 1 0" name="move_y"/> <joint type="hinge" axis="0 0 1" name="turn_z"/>
       <inertial pos="-0.58 0.02 0" mass="0.3" diaginertia="0.0002 0.0002 0.0002"/>

@@ -2,140 +2,246 @@ import time
 import threading
 import tkinter as tk
 from tkinter import ttk
-
 import numpy as np
 import mujoco
 import mujoco.viewer
-
+import csv
 from eel_env import EelEnv
-
 
 class ControlPanel:
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("Eel Control Panel")
-
-        # shared states (thread-safe enough for simple floats with GIL; use lock anyway)
+        self.root.title("Eel Sweep - Final Stable Fix")
         self.lock = threading.Lock()
 
+        # --- 基準值與範圍設定 ---
+        self.BASE_FREQ = 1.0  
+        self.BASE_AMP = 0.5
+        self.BASE_STEP = 0.5
+        
+        self.range_std = np.round(np.arange(0.1, 1.1, 0.1), 1).tolist()
+        self.range_freq = np.round(np.arange(0.5, 1.6, 0.1), 1).tolist()
+        
+        self.experiment_queue = []
+        for f in self.range_freq:
+            self.experiment_queue.append({"amp": self.BASE_AMP, "freq": f, "step": self.BASE_STEP, "tag": "Sweep_Freq"})
+        for a in self.range_std:
+            self.experiment_queue.append({"amp": a, "freq": self.BASE_FREQ, "step": self.BASE_STEP, "tag": "Sweep_Amp"})
+        for s in self.range_std:
+            self.experiment_queue.append({"amp": self.BASE_AMP, "freq": self.BASE_FREQ, "step": s, "tag": "Sweep_Step"})
+            
+        self.queue_idx = 0
         self.paused = True
-        self.reset_requested = False
+        self.auto_mode = False
+        self.current_speed = 0.0
+        self.is_alive = True
+        self.results_file = "eel_single_factor_results.csv"
+        self.vars = {}
+        self.trace_ids = {} # 儲存 trace ID 以便暫時關閉
 
-        self.amp = 0.5
-        self.freq = 1.0
-        self.turn_bias = 0.0
-        self.phase_step = 0.8
-
-        # --- UI ---
-        frm = ttk.Frame(self.root, padding=10)
-        frm.grid(row=0, column=0, sticky="nsew")
-
-        self.status_var = tk.StringVar(value="PAUSED")
-        ttk.Label(frm, textvariable=self.status_var, font=("Segoe UI", 12, "bold")).grid(
-            row=0, column=0, columnspan=3, sticky="w", pady=(0, 8)
-        )
-
-        ttk.Button(frm, text="Run / Pause", command=self.toggle_pause).grid(row=1, column=0, sticky="ew")
-        ttk.Button(frm, text="Reset", command=self.request_reset).grid(row=1, column=1, sticky="ew")
-        ttk.Button(frm, text="Quit", command=self.quit).grid(row=1, column=2, sticky="ew")
-
-        self._add_slider(frm, "Amplitude (amp)", 0.0, 1.2, 0.01, 2, "amp")
-        self._add_slider(frm, "Frequency (freq)", 0.0, 3.0, 0.01, 3, "freq")
-        self._add_slider(frm, "Turn bias (rad)", -0.6, 0.6, 0.01, 4, "turn_bias")
-        self._add_slider(frm, "Phase step", 0.1, 2.0, 0.01, 5, "phase_step")
-
-        frm.columnconfigure(0, weight=1)
-        frm.columnconfigure(1, weight=1)
-        frm.columnconfigure(2, weight=1)
-
+        # 初始參數
+        self.amp, self.freq, self.turn_bias, self.phase_step = self.BASE_AMP, self.BASE_FREQ, 0.0, self.BASE_STEP
+        
+        self._setup_ui()
         self.root.protocol("WM_DELETE_WINDOW", self.quit)
 
-    def _add_slider(self, parent, label, vmin, vmax, step, row, attr):
-        ttk.Label(parent, text=label).grid(row=row, column=0, sticky="w", pady=(10, 0))
+    def _setup_ui(self):
+        frm = ttk.Frame(self.root, padding=15)
+        frm.grid(row=0, column=0, sticky="nsew")
 
-        var = tk.DoubleVar(value=getattr(self, attr))
+        self.status_var = tk.StringVar(value="MODE: MANUAL")
+        self.speed_var = tk.StringVar(value="Speed: 0.00 m/s")
+        ttk.Label(frm, textvariable=self.status_var, font=("Segoe UI", 10, "bold")).grid(row=0, column=0, pady=(0, 5), sticky="w")
+        ttk.Label(frm, textvariable=self.speed_var, font=("Consolas", 11), foreground="blue").grid(row=1, column=0, pady=(0, 10), sticky="w")
 
-        def on_change(_=None):
+        btn_frm = ttk.Frame(frm)
+        btn_frm.grid(row=2, column=0, columnspan=2, sticky="ew", pady=5)
+        ttk.Button(btn_frm, text="Run/Pause", command=self.toggle_pause).pack(side="left", fill="x", expand=True)
+        ttk.Button(btn_frm, text="Start Experiment", command=self.toggle_auto_mode).pack(side="left", fill="x", expand=True)
+        ttk.Button(btn_frm, text="Reset to Base", command=self.reset_to_base).pack(side="left", fill="x", expand=True)
+
+        attrs = [("Amp", "amp"), ("Freq", "freq"), ("Bias", "turn_bias"), ("Step", "phase_step")]
+        for i, (label, attr) in enumerate(attrs):
+            ttk.Label(frm, text=label).grid(row=3+i, column=0, sticky="w")
+            var = tk.StringVar(value=str(getattr(self, attr)))
+            self.vars[attr] = var
+            # 綁定監控並記錄 ID
+            tid = var.trace_add("write", lambda *args, a=attr, v=var: self._update_param(a, v))
+            self.trace_ids[attr] = tid
+            ttk.Entry(frm, textvariable=var, width=10).grid(row=3+i, column=1, sticky="w", pady=2)
+
+        self._update_ui_loop()
+
+    def _update_param(self, attr, var):
+        """ 手動輸入時更新數值 """
+        try:
+            val = float(var.get())
             with self.lock:
-                setattr(self, attr, float(var.get()))
+                setattr(self, attr, val)
+        except: pass
 
-        scale = ttk.Scale(parent, from_=vmin, to=vmax, orient="horizontal", variable=var, command=lambda _: on_change())
-        scale.grid(row=row, column=1, sticky="ew", padx=(10, 10), pady=(10, 0))
-
-        val_label = ttk.Label(parent, text=f"{getattr(self, attr):.2f}")
-
-        def refresh_label():
-            val_label.configure(text=f"{var.get():.2f}")
-            parent.after(100, refresh_label)
-
-        val_label.grid(row=row, column=2, sticky="e", pady=(10, 0))
-        refresh_label()
+    def _update_ui_loop(self):
+        if not self.is_alive: return
+        try:
+            with self.lock:
+                cur_s = self.current_speed
+            self.speed_var.set(f"Speed: {cur_s:.3f} m/s")
+            self.root.after(100, self._update_ui_loop)
+        except: pass
 
     def toggle_pause(self):
         with self.lock:
             self.paused = not self.paused
-            self.status_var.set("PAUSED" if self.paused else "RUNNING")
+        self._update_status_ui()
 
-    def request_reset(self):
+    def toggle_auto_mode(self):
         with self.lock:
-            self.reset_requested = True
+            self.auto_mode = not self.auto_mode
+            if self.auto_mode:
+                self.paused = False
+                self.queue_idx = 0
+                with open(self.results_file, 'w', newline='') as f:
+                    writer = csv.writer(f)
+                    writer.writerow(["Time", "Tag", "Amp", "Freq", "Step", "AvgSpeed", "Y_Offset", "Valid"])
+        self._apply_current_queue()
+        self._update_status_ui()
+
+    def _apply_current_queue(self):
+        """ 核心修正：安全地切換至隊列中的下一組參數 """
+        if not self.is_alive: return
+        with self.lock:
+            if self.queue_idx < len(self.experiment_queue):
+                p = self.experiment_queue[self.queue_idx]
+                self.amp, self.freq, self.phase_step = p["amp"], p["freq"], p["step"]
+                a, f, s = self.amp, self.freq, self.phase_step
+                # 將 UI 更新排程到主線程
+                self.root.after(0, lambda: self._safe_ui_set(a, f, s))
+
+    def _safe_ui_set(self, a, f, s):
+        """ 暫時移除監聽以防死鎖，更新後再重新掛載 """
+        if not self.is_alive: return
+        try:
+            # 暫時關閉 trace 以免觸發 _update_param 回頭鎖定
+            for attr in ['amp', 'freq', 'phase_step']:
+                self.vars[attr].trace_remove("write", self.trace_ids[attr])
+            
+            # 執行 UI 更新
+            self.vars['amp'].set(f"{a:.2f}")
+            self.vars['freq'].set(f"{f:.2f}")
+            self.vars['phase_step'].set(f"{s:.2f}")
+            
+            # 重新綁定 trace
+            for attr in ['amp', 'freq', 'phase_step']:
+                tid = self.vars[attr].trace_add("write", lambda *args, a_name=attr, v_obj=self.vars[attr]: self._update_param(a_name, v_obj))
+                self.trace_ids[attr] = tid
+        except: pass
+
+    def _update_status_ui(self):
+        with self.lock:
+            m = "EXP" if self.auto_mode else "MANUAL"
+            s = "RUNNING" if not self.paused else "PAUSED"
+            prog = f"({self.queue_idx+1}/{len(self.experiment_queue)})" if self.auto_mode else ""
+        self.status_var.set(f"MODE: {m} / {s} {prog}")
+
+    def reset_to_base(self):
+        with self.lock:
+            self.amp, self.freq, self.phase_step = self.BASE_AMP, self.BASE_FREQ, self.BASE_STEP
+        self._safe_ui_set(self.BASE_AMP, self.BASE_FREQ, self.BASE_STEP)
 
     def quit(self):
-        # end Tk loop
-        try:
-            self.root.quit()
-            self.root.destroy()
-        except Exception:
-            pass
-
+        with self.lock: self.is_alive = False
+        self.root.quit()
+        self.root.destroy()
 
 def run_mujoco(panel: ControlPanel, xml_path="eel.xml"):
     env = EelEnv(xml_path)
     env.reset()
-    env.model.body("base_link").pos = [-4.2, 0, 0]
-
-    print("MuJoCo viewer launched. Use the Tk panel to control amp/freq/turn/pause/reset.")
+    initial_qpos = np.copy(env.data.qpos)
+    trial_speeds = []
+    
+    is_waiting = False
+    wait_start_time = 0
 
     with mujoco.viewer.launch_passive(env.model, env.data) as viewer:
+        viewer.cam.azimuth, viewer.cam.elevation, viewer.cam.distance = 0, -90.0, 13.0
+        viewer.cam.lookat = [0, 0, 0]
+
         while viewer.is_running():
-            with viewer.lock():
-                # read UI states
-                with panel.lock:
-                    paused = panel.paused
-                    amp = panel.amp
-                    freq = panel.freq
-                    turn_bias = panel.turn_bias
-                    phase_step = panel.phase_step
-                    do_reset = panel.reset_requested
-                    panel.reset_requested = False
+            with panel.lock:
+                if not panel.is_alive: break
+                p_paused = panel.paused
+                p_amp, p_freq, p_step = panel.amp, panel.freq, panel.phase_step
+                p_auto, p_turn = panel.auto_mode, panel.turn_bias
 
-                if do_reset:
-                    mujoco.mj_resetData(env.model, env.data)
-                    env.model.body("base_link").pos = [-4.2, 0, 0]
-                    env.data.ctrl[:] = 0
-                    mujoco.mj_forward(env.model, env.data)
-
-                if paused:
-                    env.data.ctrl[:] = 0
-                    mujoco.mj_forward(env.model, env.data)
-                else:
+            if not p_paused:
+                if not is_waiting:
+                    # 游泳運算
                     t = env.data.time
-                    ctrl = np.zeros(6)
-                    for i in range(6):
-                        phase = -i * phase_step
-                        ctrl[i] = turn_bias + amp * np.sin(2 * np.pi * freq * t + phase)
+                    current_bias = 0.0 if p_auto else p_turn
+                    num_j = len(env.data.ctrl)
+                    ctrl = [current_bias + (p_amp * (0.4 + 0.6 * (i/(num_j-1)))) * np.sin(2 * np.pi * p_freq * t - i * p_step) for i in range(num_j)]
+                    
+                    with viewer.lock():
+                        env.data.ctrl[:] = np.clip(ctrl, -1.2, 1.2)
+                        mujoco.mj_step(env.model, env.data)
 
-                    env.data.ctrl[:] = np.clip(ctrl, -1.2, 1.2)
-                    mujoco.mj_step(env.model, env.data)
+                    speed = np.linalg.norm(env.data.qvel[0:2])
+                    trial_speeds.append(speed)
+                    with panel.lock:
+                        panel.current_speed = speed
+
+                    # 碰撞檢測
+                    is_collided = False
+                    if env.data.ncon > 0:
+                        for i in range(env.data.ncon):
+                            con = env.data.contact[i]
+                            n1 = mujoco.mj_id2name(env.model, mujoco.mjtObj.mjOBJ_GEOM, con.geom1)
+                            n2 = mujoco.mj_id2name(env.model, mujoco.mjtObj.mjOBJ_GEOM, con.geom2)
+                            if (n1 == "base_link_collision" and n2 == "wall_front") or \
+                               (n1 == "wall_front" and n2 == "base_link_collision"):
+                                is_collided = True; break
+
+                    if is_collided:
+                        avg_s = np.mean(trial_speeds) if trial_speeds else 0
+                        y_off = abs(env.data.qpos[1])
+                        
+                        # 儲存數據
+                        with panel.lock:
+                            tag = panel.experiment_queue[panel.queue_idx]["tag"] if p_auto else "Manual"
+                        
+                        with open(panel.results_file, 'a', newline='') as f:
+                            writer = csv.writer(f)
+                            writer.writerow([time.strftime("%H:%M:%S"), tag, p_amp, p_freq, p_step, f"{avg_s:.4f}", f"{y_off:.2f}", y_off < 1.0])
+                        
+                        print(f"✅ Record OK: {tag} - {avg_s:.3f}")
+                        is_waiting = True
+                        wait_start_time = time.time()
+                
+                else:
+                    # 等待期間畫面依然同步
+                    if time.time() - wait_start_time > 1.2:
+                        # 核心修正：先更新索引，再重置物理，最後更新 UI
+                        with panel.lock:
+                            if panel.auto_mode:
+                                panel.queue_idx += 1
+                                if panel.queue_idx >= len(panel.experiment_queue):
+                                    print("🎉 Sweep Completed!"); panel.auto_mode = False; panel.paused = True
+
+                        with viewer.lock():
+                            mujoco.mj_resetData(env.model, env.data)
+                            env.data.qpos[:] = initial_qpos
+                            mujoco.mj_forward(env.model, env.data)
+                        
+                        panel._apply_current_queue() # 安全切換下一組
+                        panel._update_status_ui()
+                        
+                        trial_speeds = []
+                        is_waiting = False
 
             viewer.sync()
             time.sleep(env.model.opt.timestep)
 
-
 if __name__ == "__main__":
-    panel = ControlPanel()
-
-    sim_thread = threading.Thread(target=run_mujoco, args=(panel, "eel.xml"), daemon=True)
-    sim_thread.start()
-
-    panel.root.mainloop()
+    p = ControlPanel()
+    threading.Thread(target=run_mujoco, args=(p, "eel.xml"), daemon=True).start()
+    p.root.mainloop()

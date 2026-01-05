@@ -20,26 +20,21 @@ class ControlPanel:
         self.BASE_STEP = 0.5
         
         self.range_std = np.round(np.arange(0.1, 1.1, 0.1), 1).tolist()
-        self.range_freq = np.round(np.arange(0.5, 1.6, 0.1), 1).tolist()
+        self.range_freq = np.round(np.arange(0.5, 2.1, 0.1), 1).tolist()
         
         self.experiment_queue = []
-        for f in self.range_freq:
-            self.experiment_queue.append({"amp": self.BASE_AMP, "freq": f, "step": self.BASE_STEP, "tag": "Sweep_Freq"})
-        for a in self.range_std:
-            self.experiment_queue.append({"amp": a, "freq": self.BASE_FREQ, "step": self.BASE_STEP, "tag": "Sweep_Amp"})
-        for s in self.range_std:
-            self.experiment_queue.append({"amp": self.BASE_AMP, "freq": self.BASE_FREQ, "step": s, "tag": "Sweep_Step"})
+        for f in self.range_freq: self.experiment_queue.append({"amp": self.BASE_AMP, "freq": f, "step": self.BASE_STEP, "tag": "Sweep_Freq"})
+        for a in self.range_std: self.experiment_queue.append({"amp": a, "freq": self.BASE_FREQ, "step": self.BASE_STEP, "tag": "Sweep_Amp"})
             
         self.queue_idx = 0
         self.paused = True
         self.auto_mode = False
+        self.reset_request = False # ✅ 新增：用來通知物理執行緒重置
         self.current_speed = 0.0
         self.is_alive = True
         self.results_file = "eel_single_factor_results.csv"
         self.vars = {}
-        self.trace_ids = {} # 儲存 trace ID 以便暫時關閉
 
-        # 初始參數
         self.amp, self.freq, self.turn_bias, self.phase_step = self.BASE_AMP, self.BASE_FREQ, 0.0, self.BASE_STEP
         
         self._setup_ui()
@@ -57,96 +52,78 @@ class ControlPanel:
         btn_frm = ttk.Frame(frm)
         btn_frm.grid(row=2, column=0, columnspan=2, sticky="ew", pady=5)
         ttk.Button(btn_frm, text="Run/Pause", command=self.toggle_pause).pack(side="left", fill="x", expand=True)
-        ttk.Button(btn_frm, text="Start Experiment", command=self.toggle_auto_mode).pack(side="left", fill="x", expand=True)
-        ttk.Button(btn_frm, text="Reset to Base", command=self.reset_to_base).pack(side="left", fill="x", expand=True)
+        ttk.Button(btn_frm, text="Start Exp", command=self.toggle_auto_mode).pack(side="left", fill="x", expand=True)
+        
+        # ✅ 補回 Reset 按鈕
+        ttk.Button(btn_frm, text="Reset Physics", command=self.trigger_reset).pack(side="left", fill="x", expand=True)
+        ttk.Button(btn_frm, text="Apply Params", command=self._manual_update).pack(side="left", fill="x", expand=True)
 
         attrs = [("Amp", "amp"), ("Freq", "freq"), ("Bias", "turn_bias"), ("Step", "phase_step")]
         for i, (label, attr) in enumerate(attrs):
             ttk.Label(frm, text=label).grid(row=3+i, column=0, sticky="w")
             var = tk.StringVar(value=str(getattr(self, attr)))
             self.vars[attr] = var
-            # 綁定監控並記錄 ID
-            tid = var.trace_add("write", lambda *args, a=attr, v=var: self._update_param(a, v))
-            self.trace_ids[attr] = tid
-            ttk.Entry(frm, textvariable=var, width=10).grid(row=3+i, column=1, sticky="w", pady=2)
+            ent = ttk.Entry(frm, textvariable=var, width=10)
+            ent.grid(row=3+i, column=1, sticky="w", pady=2)
+            ent.bind("<Return>", lambda e: self._manual_update())
 
         self._update_ui_loop()
 
-    def _update_param(self, attr, var):
-        """ 手動輸入時更新數值 """
-        try:
-            val = float(var.get())
-            with self.lock:
-                setattr(self, attr, val)
-        except: pass
+    def trigger_reset(self):
+        """ ✅ 點擊按鈕時設定重置請求 """
+        with self.lock:
+            self.reset_request = True
+        print("物理重置請求已送出")
+
+    def _manual_update(self):
+        with self.lock:
+            try:
+                self.amp = float(self.vars['amp'].get())
+                self.freq = float(self.vars['freq'].get())
+                self.turn_bias = float(self.vars['turn_bias'].get())
+                self.phase_step = float(self.vars['phase_step'].get())
+            except ValueError: pass
 
     def _update_ui_loop(self):
         if not self.is_alive: return
         try:
             with self.lock:
                 cur_s = self.current_speed
+                if self.auto_mode:
+                    self.vars['amp'].set(f"{self.amp:.2f}")
+                    self.vars['freq'].set(f"{self.freq:.2f}")
+                    self.vars['phase_step'].set(f"{self.phase_step:.2f}")
             self.speed_var.set(f"Speed: {cur_s:.3f} m/s")
+            self._update_status_ui_text()
             self.root.after(100, self._update_ui_loop)
         except: pass
 
+    def _update_status_ui_text(self):
+        m = "EXP" if self.auto_mode else "MANUAL"
+        s = "RUNNING" if not self.paused else "PAUSED"
+        prog = f"({self.queue_idx+1}/{len(self.experiment_queue)})" if self.auto_mode else ""
+        self.status_var.set(f"MODE: {m} / {s} {prog}")
+
     def toggle_pause(self):
-        with self.lock:
-            self.paused = not self.paused
-        self._update_status_ui()
+        with self.lock: self.paused = not self.paused
+        self._update_status_ui_text()
 
     def toggle_auto_mode(self):
         with self.lock:
             self.auto_mode = not self.auto_mode
             if self.auto_mode:
-                self.paused = False
-                self.queue_idx = 0
+                self.paused, self.queue_idx = False, 0
                 with open(self.results_file, 'w', newline='') as f:
-                    writer = csv.writer(f)
-                    writer.writerow(["Time", "Tag", "Amp", "Freq", "Step", "AvgSpeed", "Y_Offset", "Valid"])
+                    csv.writer(f).writerow(["Time", "Tag", "Amp", "Freq", "Step", "AvgSpeed", "Y_Offset", "Valid"])
         self._apply_current_queue()
-        self._update_status_ui()
+        self._update_status_ui_text()
 
     def _apply_current_queue(self):
-        """ 核心修正：安全地切換至隊列中的下一組參數 """
         if not self.is_alive: return
         with self.lock:
             if self.queue_idx < len(self.experiment_queue):
                 p = self.experiment_queue[self.queue_idx]
                 self.amp, self.freq, self.phase_step = p["amp"], p["freq"], p["step"]
-                a, f, s = self.amp, self.freq, self.phase_step
-                # 將 UI 更新排程到主線程
-                self.root.after(0, lambda: self._safe_ui_set(a, f, s))
-
-    def _safe_ui_set(self, a, f, s):
-        """ 暫時移除監聽以防死鎖，更新後再重新掛載 """
-        if not self.is_alive: return
-        try:
-            # 暫時關閉 trace 以免觸發 _update_param 回頭鎖定
-            for attr in ['amp', 'freq', 'phase_step']:
-                self.vars[attr].trace_remove("write", self.trace_ids[attr])
-            
-            # 執行 UI 更新
-            self.vars['amp'].set(f"{a:.2f}")
-            self.vars['freq'].set(f"{f:.2f}")
-            self.vars['phase_step'].set(f"{s:.2f}")
-            
-            # 重新綁定 trace
-            for attr in ['amp', 'freq', 'phase_step']:
-                tid = self.vars[attr].trace_add("write", lambda *args, a_name=attr, v_obj=self.vars[attr]: self._update_param(a_name, v_obj))
-                self.trace_ids[attr] = tid
-        except: pass
-
-    def _update_status_ui(self):
-        with self.lock:
-            m = "EXP" if self.auto_mode else "MANUAL"
-            s = "RUNNING" if not self.paused else "PAUSED"
-            prog = f"({self.queue_idx+1}/{len(self.experiment_queue)})" if self.auto_mode else ""
-        self.status_var.set(f"MODE: {m} / {s} {prog}")
-
-    def reset_to_base(self):
-        with self.lock:
-            self.amp, self.freq, self.phase_step = self.BASE_AMP, self.BASE_FREQ, self.BASE_STEP
-        self._safe_ui_set(self.BASE_AMP, self.BASE_FREQ, self.BASE_STEP)
 
     def quit(self):
         with self.lock: self.is_alive = False
@@ -158,7 +135,6 @@ def run_mujoco(panel: ControlPanel, xml_path="eel.xml"):
     env.reset()
     initial_qpos = np.copy(env.data.qpos)
     trial_speeds = []
-    
     is_waiting = False
     wait_start_time = 0
 
@@ -167,15 +143,26 @@ def run_mujoco(panel: ControlPanel, xml_path="eel.xml"):
         viewer.cam.lookat = [0, 0, 0]
 
         while viewer.is_running():
+            step_start = time.time()
             with panel.lock:
                 if not panel.is_alive: break
                 p_paused = panel.paused
                 p_amp, p_freq, p_step = panel.amp, panel.freq, panel.phase_step
                 p_auto, p_turn = panel.auto_mode, panel.turn_bias
+                p_reset = panel.reset_request # ✅ 檢查 UI 的重置請求
+
+            # ✅ 處理手動 Reset
+            if p_reset:
+                with viewer.lock():
+                    mujoco.mj_resetData(env.model, env.data)
+                    env.data.qpos[:] = initial_qpos
+                    mujoco.mj_forward(env.model, env.data)
+                with panel.lock: panel.reset_request = False
+                trial_speeds = []
+                print("物理狀態已手動重置")
 
             if not p_paused:
                 if not is_waiting:
-                    # 游泳運算
                     t = env.data.time
                     current_bias = 0.0 if p_auto else p_turn
                     num_j = len(env.data.ctrl)
@@ -187,16 +174,14 @@ def run_mujoco(panel: ControlPanel, xml_path="eel.xml"):
 
                     speed = np.linalg.norm(env.data.qvel[0:2])
                     trial_speeds.append(speed)
-                    with panel.lock:
-                        panel.current_speed = speed
+                    with panel.lock: panel.current_speed = speed
 
-                    # 碰撞檢測
                     is_collided = False
                     if env.data.ncon > 0:
                         for i in range(env.data.ncon):
                             con = env.data.contact[i]
-                            n1 = mujoco.mj_id2name(env.model, mujoco.mjtObj.mjOBJ_GEOM, con.geom1)
-                            n2 = mujoco.mj_id2name(env.model, mujoco.mjtObj.mjOBJ_GEOM, con.geom2)
+                            n1 = mujoco.mj_id2name(env.model, mujoco.mjtOBJ_GEOM, con.geom1)
+                            n2 = mujoco.mj_id2name(env.model, mujoco.mjtOBJ_GEOM, con.geom2)
                             if (n1 == "base_link_collision" and n2 == "wall_front") or \
                                (n1 == "wall_front" and n2 == "base_link_collision"):
                                 is_collided = True; break
@@ -204,42 +189,30 @@ def run_mujoco(panel: ControlPanel, xml_path="eel.xml"):
                     if is_collided:
                         avg_s = np.mean(trial_speeds) if trial_speeds else 0
                         y_off = abs(env.data.qpos[1])
-                        
-                        # 儲存數據
-                        with panel.lock:
-                            tag = panel.experiment_queue[panel.queue_idx]["tag"] if p_auto else "Manual"
-                        
+                        with panel.lock: tag = panel.experiment_queue[panel.queue_idx]["tag"] if p_auto else "Manual"
                         with open(panel.results_file, 'a', newline='') as f:
-                            writer = csv.writer(f)
-                            writer.writerow([time.strftime("%H:%M:%S"), tag, p_amp, p_freq, p_step, f"{avg_s:.4f}", f"{y_off:.2f}", y_off < 1.0])
-                        
-                        print(f"✅ Record OK: {tag} - {avg_s:.3f}")
-                        is_waiting = True
-                        wait_start_time = time.time()
+                            csv.writer(f).writerow([time.strftime("%H:%M:%S"), tag, p_amp, p_freq, p_step, f"{avg_s:.4f}", f"{y_off:.2f}", y_off < 1.0])
+                        is_waiting, wait_start_time = True, time.time()
                 
                 else:
-                    # 等待期間畫面依然同步
                     if time.time() - wait_start_time > 1.2:
-                        # 核心修正：先更新索引，再重置物理，最後更新 UI
                         with panel.lock:
                             if panel.auto_mode:
                                 panel.queue_idx += 1
                                 if panel.queue_idx >= len(panel.experiment_queue):
-                                    print("🎉 Sweep Completed!"); panel.auto_mode = False; panel.paused = True
-
+                                    panel.auto_mode, panel.paused = False, True
+                        
+                        panel._apply_current_queue()
                         with viewer.lock():
                             mujoco.mj_resetData(env.model, env.data)
                             env.data.qpos[:] = initial_qpos
                             mujoco.mj_forward(env.model, env.data)
-                        
-                        panel._apply_current_queue() # 安全切換下一組
-                        panel._update_status_ui()
-                        
-                        trial_speeds = []
-                        is_waiting = False
+                        trial_speeds, is_waiting = [], False
 
             viewer.sync()
-            time.sleep(env.model.opt.timestep)
+            elapsed = time.time() - step_start
+            if env.model.opt.timestep > elapsed:
+                time.sleep(env.model.opt.timestep - elapsed)
 
 if __name__ == "__main__":
     p = ControlPanel()

@@ -35,4 +35,3 @@ Time,Tag,Amp,Freq,Step,AvgSpeed,Y_Offset,Valid
 20:39:14,Sweep_Step,0.5,1.0,0.8,0.3324,0.80,True
 20:40:24,Sweep_Step,0.5,1.0,0.9,0.2851,0.97,True
 20:41:51,Sweep_Step,0.5,1.0,1.0,0.2363,1.58,False
-21:02:02,Manual,0.5,1.0,0.5,0.4589,0.54,True

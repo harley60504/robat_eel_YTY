@@ -1,69 +1,96 @@
 <mujoco model="test2">
   <compiler angle="radian" meshdir="C:/Users/AWEI/Documents/GitHub/robot_eel_YTY/3D_printer/AWEI/12_30printmujoco/test2/meshes/stl"/>
 
-  <option timestep="0.001" integrator="RK4" density="1000" viscosity="0.01"/>
-
-  <asset>
-    <mesh name="base_link_visual" file="base_link_visual.stl"/>
-    <mesh name="link1_visual"  file="link1_visual.stl"/>
-    <mesh name="link2_visual"  file="link2_visual.stl"/>
-    <mesh name="link3_visual"  file="link3_visual.stl"/>
-    <mesh name="link4_visual"  file="link4_visual.stl"/>
-    <mesh name="link5_visual"  file="link5_visual.stl"/>
-    <mesh name="link6_visual"  file="link6_visual.stl"/>
-
-    <texture name="texplane" builtin="checker" rgb1=".2 .3 .4" rgb2=".1 .15 .2" 
-             type="2d" width="512" height="512" mark="cross" markrgb=".8 .8 .8"/>  
-    <material name="matplane" reflectance="0.3" texture="texplane" texrepeat="4 4" texuniform="true"/>
-    <material name="water_mat" rgba="0 0.5 0.8 0.2"/>
-  </asset>
+  <option timestep="0.001" integrator="RK4" density="1000" viscosity="0.01" gravity="0 0 0"/>
+  
+  <visual>
+    <global fovy="45" azimuth="135" elevation="-20"/>
+    <quality shadowsize="2048"/>
+    <rgba fog="0 0.5 0.8 1"/> 
+    <map fogstart="1" fogend="5"/> 
+  </visual>
+ <asset>
+  <mesh name="base_link_visual" file="base_link_visual.stl"/>
+  <mesh name="link1_visual"  file="link1_visual.stl"/>
+  <mesh name="link2_visual"  file="link2_visual.stl"/>
+  <mesh name="link3_visual"  file="link3_visual.stl"/>
+  <mesh name="link4_visual"  file="link4_visual.stl"/>
+  <mesh name="link5_visual"  file="link5_visual.stl"/>
+  <mesh name="link6_visual"  file="link6_visual.stl"/>
+  <texture name="texplane" builtin="checker" rgb1=".2 .3 .4" rgb2=".1 .15 .2" 
+           type="2d" width="512" height="512" mark="cross" markrgb=".8 .8 .8"/>  
+  <material name="matplane" reflectance="0.5" texture="texplane" texrepeat="4 4" texuniform="true"/>
+  <material name="water_visual_mat" rgba="0 0.4 0.9 0.2" reflectance="0.9" shininess="1" specular="1"/>
+</asset>
 <!-- ROBOR EEL BODY -->
   <worldbody>
-    <light directional="true" diffuse=".8 .8 .8" specular=".2 .2 .2" pos="0 0 5" dir="0 0 -1"/>    
-    <geom name="floor" pos="0 0 -0.5" size="2 2 0.1" type="plane" material="matplane"  contype="1" conaffinity="1"/>
+    <light directional="true" diffuse=".8 .8 .8" specular=".2 .2 .2" pos="0 0 5" dir="0 0 -1"/>     
+   <geom name="floor" pos="0 0 -0.5" size="5 2 0.1" type="plane" material="matplane" contype="1" conaffinity="1"/>
+    <geom name="wall_front" type="box" pos="5 0 0" size="0.1 2 0.5" rgba="0 0.5 0.8 0.2" contype="1" conaffinity="1"/>
+    <geom name="wall_back"  type="box" pos="-5 0 0" size="0.1 2 0.5" rgba="0 0.5 0.8 0.2" contype="1" conaffinity="1"/>
+    <geom name="wall_left"  type="box" pos="0 2 0" size="5 0.1 0.5" rgba="0 0.5 0.8 0.2" contype="1" conaffinity="1"/>
+    <geom name="wall_right" type="box" pos="0 -2 0" size="5 0.1 0.5" rgba="0 0.5 0.8 0.2" contype="1" conaffinity="1"/> 
+    <geom name="water_volume" type="box" pos="0 0 -0.25" size="4.95 1.95 0.27" material="water_visual_mat" contype="0" conaffinity="0" group="1"/>
+    <!-- obstacles on water surface (fixed) -->
+    <geom name="buoy_1" type="cylinder" pos="1.0 0.6 0.02" size="0.07 0.25"
+      rgba="1 0.6 0 1" contype="1" conaffinity="1"/>
+
+    <geom name="buoy_2" type="cylinder" pos="2.0 -0.4 0.02" size="0.07 0.25"
+      rgba="1 0.6 0 1" contype="1" conaffinity="1"/>
+
+    <geom name="barrier" type="box" pos="0.5 0.0 0.02" size="0.15 1.2 0.08"
+      rgba="0.9 0.2 0.2 1" contype="1" conaffinity="1"/>
     <!-- head -->
     <body name="base_link" pos="0 0 0">
-      <freejoint name="root"/>
-      <inertial pos="-0.58 0.02 0" mass="0.1" diaginertia="0.0002 0.0002 0.0002"/>
+      <!-- <freejoint name="root"/> -->
+       <joint type="slide" axis="1 0 0" name="move_x"/> <joint type="slide" axis="0 1 0" name="move_y"/> <joint type="hinge" axis="0 0 1" name="turn_z"/>
+      <inertial pos="-0.58 0.02 0" mass="0.3" diaginertia="0.0002 0.0002 0.0002"/>
       <geom name="base_link_collision" pos="-0.58754 0.02815 -0.00475" quat="0.707105 0 0 -0.707108" 
-          type="mesh" contype="2" conaffinity="1" group="0" rgba="1 0 0 1" mesh="base_link_visual"/>
+          type="mesh" contype="2" conaffinity="1" group="0" rgba="1 0 0 1" mesh="base_link_visual" fluidshape="ellipsoid" 
+      fluidcoef="0.5 0.25 1.5 1.0 1.0"/>
       <geom name="base_link_visual" pos="-0.58754 0.02815 -0.00475" quat="0.707105 0 0 -0.707108" 
           type="mesh" contype="0" conaffinity="0" group="1" mesh="base_link_visual"/>
     <!-- link1 -->
       <body name="link1" pos="-0.06425 0.00065 0.042">
-        <inertial pos="-0.0275 0 -0.01959" quat="0.5 0.5 0.5 0.5" mass="0.067" diaginertia="0.00015 0.00015 1e-05"/>
+        <inertial pos="-0.0275 0 -0.01959" quat="0.5 0.5 0.5 0.5" mass="0.08" diaginertia="0.00015 0.00015 1e-05"/>
         <joint name="link1_joint" pos="0 0 0" axis="0 0 1" range="-1.5 1.5" actuatorfrcrange="-10 10" armature="0.05" damping="1.5"/>
-        <geom name="link1_collision" pos="-0.52329 0.0275 -0.04675" quat="0.707105 0 0 -0.707108" type="mesh"  group="0" contype="2" conaffinity="1" rgba="1 0 0 1"   mesh="link1_visual"/>
+        <geom name="link1_collision" pos="-0.52329 0.0275 -0.04675" quat="0.707105 0 0 -0.707108" type="mesh"  group="0" contype="2" conaffinity="1" rgba="1 0 0 1"   mesh="link1_visual" fluidshape="ellipsoid" 
+      fluidcoef="0.5 0.25 1.5 1.0 1.0"/>
         <geom name="link1_visual" pos="-0.52329 0.0275 -0.04675" quat="0.707105 0 0 -0.707108" type="mesh" contype="0" conaffinity="0" group="1"  density="0"   mesh="link1_visual"/>
      <!-- link2 -->
         <body name="link2" pos="-0.0747 0 0">
-          <inertial pos="-0.0275 0 -0.0196" quat="0.5 0.5 0.5 0.5" mass="0.067" diaginertia="0.00015 0.00015 1e-05"/>
+          <inertial pos="-0.0275 0 -0.0196" quat="0.5 0.5 0.5 0.5" mass="0.08" diaginertia="0.00015 0.00015 1e-05"/>
           <joint name="link2_joint" pos="0 0 0" axis="0 0 1" range="-1.5 1.5" actuatorfrcrange="-10 10" armature="0.05" damping="1.5"/>
-          <geom name="link2_collision" pos="-0.44859 0.0275 -0.04675" quat="0.707105 0 0 -0.707108" type="mesh"  group="0" contype="2" conaffinity="1" rgba="1 0 0  1" mesh="link2_visual"/>
+          <geom name="link2_collision" pos="-0.44859 0.0275 -0.04675" quat="0.707105 0 0 -0.707108" type="mesh"  group="0" contype="2" conaffinity="1" rgba="1 0 0  1" mesh="link2_visual" fluidshape="ellipsoid" 
+      fluidcoef="0.5 0.25 1.5 1.0 1.0"/>
           <geom name="link2_visual" pos="-0.44859 0.0275 -0.04675" quat="0.707105 0 0 -0.707108" type="mesh" contype="0" conaffinity="0" group="1" density="0"  mesh="link2_visual"/>
      <!-- link3 -->
           <body name="link3" pos="-0.0747 0 0">
-            <inertial pos="-0.0275 0 -0.0196" quat="0.5 0.5 0.5 0.5" mass="0.067" diaginertia="0.00015 0.00015 1e-05"/>
+            <inertial pos="-0.0275 0 -0.0196" quat="0.5 0.5 0.5 0.5" mass="0.08" diaginertia="0.00015 0.00015 1e-05"/>
             <joint name="link3_joint" pos="0 0 0" axis="0 0 1" range="-1.5 1.5" actuatorfrcrange="-10 10" armature="0.05" damping="1.5"/>
-            <geom name="link3_collision" pos="-0.37389 0.0275 -0.04675" quat="0.707105 0 0 -0.707108" type="mesh"   group="0" contype="2" conaffinity="1" rgba="1 0   0 1" mesh="link3_visual"/>
+            <geom name="link3_collision" pos="-0.37389 0.0275 -0.04675" quat="0.707105 0 0 -0.707108" type="mesh"   group="0" contype="2" conaffinity="1" rgba="1 0   0 1" mesh="link3_visual" fluidshape="ellipsoid" 
+      fluidcoef="0.5 0.25 1.5 1.0 1.0"/>
             <geom name="link3_visual" pos="-0.37389 0.0275 -0.04675" quat="0.707105 0 0 -0.707108" type="mesh" contype="0" conaffinity="0" group="1" density="0"  mesh="link3_visual"/>
       <!-- link4 -->
             <body name="link4" pos="-0.07332 3e-05 -0.00111">
-              <inertial pos="-0.02888 -3e-05 -0.01848" quat="0.5 0.5 0.5 0.5" mass="0.067" diaginertia="0.00015 0.00015 1e-05"/>
+              <inertial pos="-0.02888 -3e-05 -0.01848" quat="0.5 0.5 0.5 0.5" mass="0.08" diaginertia="0.00015 0.00015 1e-05"/>
               <joint name="link4_joint" pos="0 0 0" axis="0 0 1" range="-1.5 1.5" actuatorfrcrange="-10 10" armature="0.05" damping="1.5"/>
-              <geom name="link4_collision" pos="-0.30057 0.02747 -0.04564" quat="0.707105 0 0 -0.707108" type="mesh"   group="0" contype="2" conaffinity="1"  rgba="1 0 0 1" mesh="link4_visual"/>
+              <geom name="link4_collision" pos="-0.30057 0.02747 -0.04564" quat="0.707105 0 0 -0.707108" type="mesh"   group="0" contype="2" conaffinity="1"  rgba="1 0 0 1" mesh="link4_visual" fluidshape="ellipsoid" 
+      fluidcoef="0.5 0.25 1.5 1.0 1.0"/>
               <geom name="link4_visual" pos="-0.30057 0.02747 -0.04564" quat="0.707105 0 0 -0.707108" type="mesh" contype="0" conaffinity="0" group="1" density="0"   mesh="link4_visual"/>
         <!-- link5 -->
               <body name="link5" pos="-0.07608 -3e-05 0.00111">
-                <inertial pos="-0.0275 0 -0.0196" quat="0.5 0.5 0.5 0.5" mass="0.067" diaginertia="0.00015 0.00015 1e-05"/>
+                <inertial pos="-0.0275 0 -0.0196" quat="0.5 0.5 0.5 0.5" mass="0.08" diaginertia="0.00015 0.00015 1e-05"/>
                 <joint name="link5_joint" pos="0 0 0" axis="0 0 1" range="-1.5 1.5" actuatorfrcrange="-10 10" armature="0.05" damping="1.5"/>
-                <geom name="link5_collision" pos="-0.22449 0.0275 -0.04675" quat="0.707105 0 0 -0.707108" type="mesh"  group="0"  contype="2" conaffinity="1"   rgba="1 0 0 1" mesh="link5_visual"/>
+                <geom name="link5_collision" pos="-0.22449 0.0275 -0.04675" quat="0.707105 0 0 -0.707108" type="mesh"  group="0"  contype="2" conaffinity="1"   rgba="1 0 0 1" mesh="link5_visual" fluidshape="ellipsoid" 
+      fluidcoef="0.5 0.25 1.5 1.0 1.0"/>
                 <geom name="link5_visual" pos="-0.22449 0.0275 -0.04675" quat="0.707105 0 0 -0.707108" type="mesh" contype="0" conaffinity="0" group="1"  density="0" mesh="link5_visual"/>
             <!-- link6 -->
                 <body name="link6" pos="-0.0747 0 0">
-                  <inertial pos="-0.05018 0 -0.01937" quat="0 0.707107 0 0.707107" mass="0.071" diaginertia="0.00012 0.00011 1e-05"/>
+                  <inertial pos="-0.05018 0 -0.01937" quat="0 0.707107 0 0.707107" mass="0.1" diaginertia="0.00012 0.00011 1e-05"/>
                   <joint name="link6_joint" pos="0 0 0" axis="0 0 1" range="-1.5 1.5" actuatorfrcrange="-10 10" armature="0.05" damping="1.5"/>
-                  <geom name="link6_collision" pos="-0.14979 0.0275 -0.04675" quat="0.707105 0 0 -0.707108" type="mesh"  group="0" contype="2" conaffinity="1"  rgba="1 0 0 1" mesh="link6_visual"/>
+                  <geom name="link6_collision" pos="-0.14979 0.0275 -0.04675" quat="0.707105 0 0 -0.707108" type="mesh"  group="0" contype="2" conaffinity="1"  rgba="1 0 0 1" mesh="link6_visual" fluidshape="ellipsoid" 
+      fluidcoef="0.5 0.25 1.5 1.0 1.0"/>
                   <geom name="link6_visual" pos="-0.14979 0.0275 -0.04675" quat="0.707105 0 0 -0.707108" type="mesh" contype="0" conaffinity="0" group="1"  density="0" mesh="link6_visual"/>
                 </body>
               </body>

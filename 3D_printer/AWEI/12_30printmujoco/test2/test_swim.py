@@ -176,15 +176,19 @@ def run_mujoco(panel: ControlPanel, xml_path="eel.xml"):
                     trial_speeds.append(speed)
                     with panel.lock: panel.current_speed = speed
 
+                   # 碰撞檢測修正段落
                     is_collided = False
                     if env.data.ncon > 0:
                         for i in range(env.data.ncon):
                             con = env.data.contact[i]
-                            n1 = mujoco.mj_id2name(env.model, mujoco.mjtOBJ_GEOM, con.geom1)
-                            n2 = mujoco.mj_id2name(env.model, mujoco.mjtOBJ_GEOM, con.geom2)
+                            # 修正這裡：使用 mujoco.mjtObj.mjOBJ_GEOM
+                            n1 = mujoco.mj_id2name(env.model, mujoco.mjtObj.mjOBJ_GEOM, con.geom1)
+                            n2 = mujoco.mj_id2name(env.model, mujoco.mjtObj.mjOBJ_GEOM, con.geom2)
+
                             if (n1 == "base_link_collision" and n2 == "wall_front") or \
                                (n1 == "wall_front" and n2 == "base_link_collision"):
-                                is_collided = True; break
+                                is_collided = True
+                                break
 
                     if is_collided:
                         avg_s = np.mean(trial_speeds) if trial_speeds else 0
@@ -195,19 +199,35 @@ def run_mujoco(panel: ControlPanel, xml_path="eel.xml"):
                         is_waiting, wait_start_time = True, time.time()
                 
                 else:
+                    # 當等待 1.2 秒結束後執行重置
                     if time.time() - wait_start_time > 1.2:
                         with panel.lock:
                             if panel.auto_mode:
+                                # --- 自動模式 (Start Exp) 的邏輯 ---
                                 panel.queue_idx += 1
                                 if panel.queue_idx >= len(panel.experiment_queue):
-                                    panel.auto_mode, panel.paused = False, True
-                        
+                                    print("🎉 所有實驗已完成！")
+                                    panel.auto_mode = False
+                                    panel.paused = True # 實驗全部做完才停
+                                else:
+                                    panel.paused = False # 還有下一組，繼續跑
+                            else:
+                                # --- 手動模式 (Run/Pause) 的邏輯 ---
+                                # ✅ 關鍵：手動模式游完一次後，強制設為暫停
+                                panel.paused = True 
+                                print("手動游動結束，已重置並暫停。")
+                            
+                            panel._update_status_ui_text()
+
+                        # 執行重置動作
                         panel._apply_current_queue()
                         with viewer.lock():
                             mujoco.mj_resetData(env.model, env.data)
                             env.data.qpos[:] = initial_qpos
                             mujoco.mj_forward(env.model, env.data)
-                        trial_speeds, is_waiting = [], False
+                        
+                        trial_speeds = []
+                        is_waiting = False
 
             viewer.sync()
             elapsed = time.time() - step_start

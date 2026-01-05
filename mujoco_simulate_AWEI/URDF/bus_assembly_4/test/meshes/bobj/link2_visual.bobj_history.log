@@ -1,3 +1,0 @@
-Instantiated with filepath=None->None, scale=[1.0, 1.0, 1.0], mesh=<bpy_struct, Mesh("link2_visual") at 0x000001A7014AB658>, meshname=link2_visual, material=None, mesh_orientation=None, {}
-->trying export of <bpy_struct, Mesh("link2_visual") at 0x000001A7014AB658> to C:\Users\AWEI\Documents\GitHub\robot_eel_YTY\3D_printer\AWEI\12_30printmujoco\test\meshes\bobj\link2_visual.bobj
-->wrote bobj to C:\Users\AWEI\Documents\GitHub\robot_eel_YTY\3D_printer\AWEI\12_30printmujoco\test\meshes\bobj\link2_visual.bobj from bpy_types.Mesh

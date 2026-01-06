@@ -4,53 +4,45 @@
 #include <Arduino.h>
 #include "ControltoCamera.h"
 #include "config.h"
-#include "utils.h"     // ← 這裡已經有 ServoState + servoState[]
+#include "utils.h"
 
 #define SERVO_STATUS_HEADER 0xBB
 #define SERVO_MAX 8
-
 
 #pragma pack(push,1)
 typedef struct {
   uint8_t header;
   uint8_t count;
-  float   targetDeg[SERVO_MAX];
-  float   actualDeg[SERVO_MAX];
-  float   errorDeg[SERVO_MAX];
+  uint32_t seq;
+  float targetDeg[SERVO_MAX];
+  float actualDeg[SERVO_MAX];
+  float errorDeg[SERVO_MAX];
   uint8_t checksum;
 } ServoStatusPacket;
 #pragma pack(pop)
 
-
-// 直接用 utils.h 裡的
 extern ServoState servoState[];
 extern float angleDeg[];
+
+/* ========= Snapshot buffer ========= */
+ServoStatusPacket g_status;
+
+/* ========= Mutex ========= */
+SemaphoreHandle_t statusMutex = xSemaphoreCreateMutex();
 
 
 static inline void sendServoStatusUART(HardwareSerial& serial)
 {
-  ServoStatusPacket pkt;
+  if (!xSemaphoreTake(statusMutex, 0))
+    return;   // 取不到就等下次
 
-  pkt.header = SERVO_STATUS_HEADER;
-  pkt.count  = bodyNum;
+  serial.write((uint8_t*)&g_status, sizeof(ServoStatusPacket));
 
-  for(int i=0;i<bodyNum;i++)
-  {
-    pkt.targetDeg[i] = servoState[i].targetDeg;
-    pkt.actualDeg[i] = servoState[i].actualDeg;
-    pkt.errorDeg[i]  = servoState[i].errorDeg;
-  }
-
-  pkt.checksum = calcControlChecksum(
-    (uint8_t*)&pkt,
-    sizeof(ServoStatusPacket)-1
-  );
-
-  serial.write((uint8_t*)&pkt, sizeof(ServoStatusPacket));
+  xSemaphoreGive(statusMutex);
 }
 
 
-// Task
+/* ========= UART TX Task ========= */
 static void servoStatusTxTask(void *pv)
 {
   TickType_t lastWake = xTaskGetTickCount();
@@ -58,7 +50,7 @@ static void servoStatusTxTask(void *pv)
   while(true)
   {
     sendServoStatusUART(Serial2);
-    vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(200));
+    vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(80));
   }
 }
 

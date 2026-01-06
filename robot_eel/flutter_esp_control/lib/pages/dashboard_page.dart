@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../api/esp_api.dart'; // ★ 要加
+import '../api/esp_api.dart';
 import '../widgets/mode_switch.dart';
 import '../widgets/motion_param.dart';
 import '../widgets/system_status.dart';
@@ -19,7 +19,6 @@ class _DashboardPageState extends State<DashboardPage> {
   void initState() {
     super.initState();
 
-    /// ★★★ WebSocket Debug Listener ★★★
     WsControlApi.stream().listen((msg) {
       if (enableControlDebugLog) {
         debugPrint("CONTROL WS RX: $msg");
@@ -31,15 +30,22 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
 
+    final crossAxisCount = width > 900 ? 2 : 1;
+
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 1200),
+
         child: GridView.count(
-          padding: const EdgeInsets.all(10),
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
-          crossAxisCount: width > 1000 ? 2 : 1,
-          childAspectRatio: 1.35,
+          padding: const EdgeInsets.all(12),
+
+          crossAxisCount: crossAxisCount,
+          mainAxisSpacing: 12,
+          crossAxisSpacing: 12,
+
+          /// ★ 讓高度自適應內容
+          childAspectRatio: 1.2,
+
           children: const [
             ModeSwitch(),
             MotionParam(),

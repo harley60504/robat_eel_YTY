@@ -11,7 +11,7 @@ dependencies:
   flutter:
     sdk: flutter
   web_socket_channel: ^2.4.0  # 加這個
-  
+  excel: ^4.0.2
   cupertino_icons: ^1.0.8
   http: ^1.1.0        # ★★★ 加這行（正式引入 http 套件）
 

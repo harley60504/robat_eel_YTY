@@ -3,13 +3,14 @@
 #include "config.h"
 #include "utils.h"
 #include "logging.h"
+#include "ServoStatusUART.h"   // ★ 要包含，取得 g_status 與 mutex
+
 void servoTask(void *pv)
 {
-  const float dt = 0.05f;
-  uint32_t lastWake = xTaskGetTickCount();
-
-  static uint32_t loopCount = 0;
-  static int readIndex = 0;   // 輪流讀哪一顆 servo
+  const uint16_t MOVE_TIME_MS = 100;
+  const float    dt = MOVE_TIME_MS / 1000.0f;
+  static uint32_t seq = 0;
+  TickType_t lastWake = xTaskGetTickCount();
 
   for (;;)
   {
@@ -17,42 +18,50 @@ void servoTask(void *pv)
     {
       float t = millis() / 1000.0f;
 
-      /* ========= 1. 先寫入所有 servo（控制主流程） ========= */
+      /* ========= 1. 計算 target 並輸出 MOVE ========= */
       for (int j = 0; j < bodyNum; j++)
       {
         float outDeg = 0.0f;
 
-        if (controlMode == 0)
+        switch (controlMode)
         {
-          outDeg = Ajoint * sinf(
-            j / fmaxf(lambda * L, 1e-6f)
-            + 2.0f * PI * frequency * t
-          );
-        }
-        else if (controlMode == 1)
-        {
-          float fb_phase = 0.0f, fb_amp = 0.0f;
-          updateCPG(t, dt, j, fb_phase, fb_amp);
-          outDeg = getCPGOutput(j);
+          case 0:
+            outDeg =
+              Ajoint *
+              sinf(j / fmaxf(lambda * L, 1e-6f)
+                   + 2 * PI * frequency * t);
+            break;
+
+          case 1:
+          {
+            float fb_phase = 0, fb_amp = 0;
+            updateCPG(t, dt, j, fb_phase, fb_amp);
+            outDeg = getCPGOutput(j);
+          }
+            break;
+
+          case 2:
+            outDeg = 0.0f;
+            break;
         }
 
         float targetDeg = servoDefaultAngles[j] + outDeg;
-        angleDeg[j] = targetDeg;
+
         servoState[j].targetDeg = targetDeg;
+        angleDeg[j] = targetDeg;
 
         int pos = degreeToLX224(targetDeg);
-        moveLX224(j + 1, pos, 80);   // 速度你已經調快，OK
+        moveLX224(j + 1, pos, MOVE_TIME_MS);
       }
 
-      /* ========= 2. 低頻、輪流 read（安全關鍵） ========= */
-      loopCount++;
+      /* ========= 2. 等待 servo 完成運動 ========= */
+      vTaskDelay(pdMS_TO_TICKS(MOVE_TIME_MS));
 
-      // 每 4 圈才讀一次 → 80ms * 4 ≈ 320ms（~3 Hz）
-      if (loopCount % 4 == 0)
+      /* ========= 3. 同步讀回授 ========= */
+      for (int j = 0; j < bodyNum; j++)
       {
-        int j = readIndex;
-
         int actualPos = readPositionLX224(j + 1);
+
         if (actualPos >= 0)
         {
           servoState[j].actualPos = actualPos;
@@ -63,17 +72,32 @@ void servoTask(void *pv)
           servoState[j].errorDeg =
             servoState[j].targetDeg - actualDeg;
         }
-
-        // 下一圈換下一顆
-        readIndex++;
-        if (readIndex >= bodyNum)
-          readIndex = 0;
       }
 
-      /* ========= 3. 誤差累積（只用已更新的資料） ========= */
-      accumulateServoError();
-    }
+      /* ========= 4. 建立封包 SNAPSHOT ========= */
+      if (xSemaphoreTake(statusMutex, portMAX_DELAY))
+      {
+        g_status.header = SERVO_STATUS_HEADER;
+        g_status.count  = bodyNum;
+        g_status.seq    = seq++;
+        for(int i=0;i<bodyNum;i++)
+        {
+          g_status.targetDeg[i] = servoState[i].targetDeg;
+          g_status.actualDeg[i] = servoState[i].actualDeg;
+          g_status.errorDeg[i]  = servoState[i].errorDeg;
+        }
 
-    vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(80));
+        g_status.checksum = calcControlChecksum(
+          (uint8_t*)&g_status,
+          sizeof(ServoStatusPacket)-1
+        );
+
+        xSemaphoreGive(statusMutex);
+      }
+    }
+    else
+    {
+      vTaskDelay(pdMS_TO_TICKS(10));
+    }
   }
 }

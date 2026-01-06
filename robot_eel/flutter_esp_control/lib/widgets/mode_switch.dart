@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../api/esp_api.dart';
 
@@ -10,18 +11,29 @@ class ModeSwitch extends StatefulWidget {
 
 class _ModeSwitchState extends State<ModeSwitch> {
   int mode = -1;
+  StreamSubscription? sub;
 
   @override
   void initState() {
     super.initState();
 
-    WsControlApi.stream().listen((msg) {
-      if (msg["type"] == "ctrl_params") {
-        setState(() => mode = msg["mode"] ?? -1);
+    sub = WsControlApi.stream().listen((msg) {
+      if (msg["type"] != "ctrl_params") return;
+
+      final newMode = msg["mode"] ?? -1;
+
+      if (newMode != mode && mounted) {
+        setState(() => mode = newMode);
       }
     });
 
     WsControlApi.getParams();
+  }
+
+  @override
+  void dispose() {
+    sub?.cancel();
+    super.dispose();
   }
 
   void setMode(int m) {
@@ -30,6 +42,7 @@ class _ModeSwitchState extends State<ModeSwitch> {
 
   Widget modeBtn(String name, int m) {
     final isSel = mode == m;
+
     return ElevatedButton(
       style: ElevatedButton.styleFrom(
         backgroundColor: isSel ? Colors.blue : null,
@@ -58,6 +71,7 @@ class _ModeSwitchState extends State<ModeSwitch> {
       elevation: 3,
       child: Padding(
         padding: const EdgeInsets.all(16),
+
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

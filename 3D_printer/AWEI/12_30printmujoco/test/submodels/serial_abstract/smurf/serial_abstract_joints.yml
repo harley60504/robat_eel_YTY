@@ -1,0 +1,136 @@
+{
+  "joints": [
+    {
+      "child": "link4",
+      "constraint_axes": [],
+      "cut_joint": false,
+      "joint_dependencies": [],
+      "joint_type": "revolute",
+      "name": "link4_joint",
+      "origin": {
+        "position": [
+          -0.0733211487531662,
+          3.2512820325791836e-05,
+          -0.0011111125349998474
+        ],
+        "relative_to": "link3",
+        "rotation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "parent": "link3"
+    },
+    {
+      "child": "link5",
+      "constraint_axes": [],
+      "cut_joint": false,
+      "joint_dependencies": [],
+      "joint_type": "revolute",
+      "name": "link5_joint",
+      "origin": {
+        "position": [
+          -0.07607889175415039,
+          -3.250536974519491e-05,
+          0.0011111125349998474
+        ],
+        "relative_to": "link4",
+        "rotation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "parent": "link4"
+    },
+    {
+      "child": "link2",
+      "constraint_axes": [],
+      "cut_joint": false,
+      "joint_dependencies": [],
+      "joint_type": "revolute",
+      "name": "link2_joint",
+      "origin": {
+        "position": [
+          -0.0747000128030777,
+          2.444721758365631e-09,
+          0.0
+        ],
+        "relative_to": "link1",
+        "rotation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "parent": "link1"
+    },
+    {
+      "child": "link1",
+      "constraint_axes": [],
+      "cut_joint": false,
+      "joint_dependencies": [],
+      "joint_type": "revolute",
+      "name": "link1_joint",
+      "origin": {
+        "position": [
+          -0.06425002962350845,
+          0.0006460034637711942,
+          0.042000800371170044
+        ],
+        "relative_to": "base_link",
+        "rotation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "parent": "base_link"
+    },
+    {
+      "child": "link6",
+      "constraint_axes": [],
+      "cut_joint": false,
+      "joint_dependencies": [],
+      "joint_type": "revolute",
+      "name": "link6_joint",
+      "origin": {
+        "position": [
+          -0.07470005750656128,
+          2.444721758365631e-09,
+          0.0
+        ],
+        "relative_to": "link5",
+        "rotation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "parent": "link5"
+    },
+    {
+      "child": "link3",
+      "constraint_axes": [],
+      "cut_joint": false,
+      "joint_dependencies": [],
+      "joint_type": "revolute",
+      "name": "link3_joint",
+      "origin": {
+        "position": [
+          -0.07470002770423889,
+          3.14321368932724e-09,
+          0.0
+        ],
+        "relative_to": "link2",
+        "rotation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "parent": "link2"
+    }
+  ]
+}

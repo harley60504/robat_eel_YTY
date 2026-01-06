@@ -6,12 +6,12 @@
         <mesh name="tail" file="tail_simple.stl"/>
     </asset> -->
     <asset>
-        <mesh name="tail" file="tail.stl"  scale="0.001 0.001 0.001"/>
-        <mesh name="seg2_mesh" file="bus.stl" scale="0.001 0.001 0.001"/>
-        <mesh name="seg3_mesh" file="bus.stl" scale="0.001 0.001 0.001"/>
-        <mesh name="seg4_mesh" file="bus.stl" scale="0.001 0.001 0.001"/>
-        <mesh name="seg5_mesh" file="bus.stl" scale="0.001 0.001 0.001"/>
-        <mesh name="seg6_mesh" file="bustail.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="tail" file="meshs/tail.stl"  scale="0.001 0.001 0.001"/>
+        <mesh name="seg2_mesh" file="meshs/bus.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="seg3_mesh" file="meshs/bus.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="seg4_mesh" file="meshs/bus.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="seg5_mesh" file="meshs/bus.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="seg6_mesh" file="meshs/bustail.stl" scale="0.001 0.001 0.001"/>
     </asset>
     <default>
         <joint

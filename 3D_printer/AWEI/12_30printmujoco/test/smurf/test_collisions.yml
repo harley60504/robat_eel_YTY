@@ -1,0 +1,53 @@
+{
+  "collisions": [
+    {
+      "geometry": "box",
+      "link": "base_link",
+      "name": "base_link_collision",
+      "primitive": [],
+      "primitives": []
+    },
+    {
+      "geometry": "box",
+      "link": "link1",
+      "name": "link1_collision",
+      "primitive": [],
+      "primitives": []
+    },
+    {
+      "geometry": "box",
+      "link": "link2",
+      "name": "link2_collision",
+      "primitive": [],
+      "primitives": []
+    },
+    {
+      "geometry": "box",
+      "link": "link3",
+      "name": "link3_collision",
+      "primitive": [],
+      "primitives": []
+    },
+    {
+      "geometry": "box",
+      "link": "link4",
+      "name": "link4_collision",
+      "primitive": [],
+      "primitives": []
+    },
+    {
+      "geometry": "box",
+      "link": "link5",
+      "name": "link5_collision",
+      "primitive": [],
+      "primitives": []
+    },
+    {
+      "geometry": "box",
+      "link": "link6",
+      "name": "link6_collision",
+      "primitive": [],
+      "primitives": []
+    }
+  ]
+}

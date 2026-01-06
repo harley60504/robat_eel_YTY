@@ -1,0 +1,19 @@
+{
+  "submodels": {
+    "serial_abstract": {
+      "abstract_model": true,
+      "export_dir": "..\\submodels\\serial_abstract",
+      "include_human_in_abstract": false,
+      "include_unstopped_branches": true,
+      "move_joint_axis_to_intersection": null,
+      "name": "serial_abstract",
+      "no_submechanisms": false,
+      "only_urdf": false,
+      "remove_fixed": false,
+      "remove_joints": [],
+      "robotname": null,
+      "start": null,
+      "stop": null
+    }
+  }
+}

@@ -9,9 +9,9 @@ dt = 0.002
 
 print("Launching viewer...")
 
-freq = 0.1
+freq = 0
 
-amp = 0.5  
+amp = 0
 
 while True:
     ctrl = np.zeros(6)

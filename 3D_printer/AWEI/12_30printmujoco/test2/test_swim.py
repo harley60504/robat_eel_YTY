@@ -137,21 +137,27 @@ def run_mujoco(panel: ControlPanel, xml_path="eel.xml"):
     trial_speeds = []
     is_waiting = False
     wait_start_time = 0
+    
+    # 用於效能控制：每 5 步才同步一次畫面 (500Hz / 5 = 100 FPS，足夠流暢)
+    frame_skip = 5
+    step_counter = 0
 
     with mujoco.viewer.launch_passive(env.model, env.data) as viewer:
         viewer.cam.azimuth, viewer.cam.elevation, viewer.cam.distance = 0, -90.0, 13.0
         viewer.cam.lookat = [0, 0, 0]
 
         while viewer.is_running():
+            # --- 【核心】記錄這一步開始的時間 ---
             step_start = time.time()
+            
             with panel.lock:
                 if not panel.is_alive: break
                 p_paused = panel.paused
                 p_amp, p_freq, p_step = panel.amp, panel.freq, panel.phase_step
                 p_auto, p_turn = panel.auto_mode, panel.turn_bias
-                p_reset = panel.reset_request # ✅ 檢查 UI 的重置請求
+                p_reset = panel.reset_request
 
-            # ✅ 處理手動 Reset
+            # 處理手動 Reset
             if p_reset:
                 with viewer.lock():
                     mujoco.mj_resetData(env.model, env.data)
@@ -159,13 +165,26 @@ def run_mujoco(panel: ControlPanel, xml_path="eel.xml"):
                     mujoco.mj_forward(env.model, env.data)
                 with panel.lock: panel.reset_request = False
                 trial_speeds = []
-                print("物理狀態已手動重置")
 
             if not p_paused:
                 if not is_waiting:
+                    # 使用模擬器內部時間 env.data.time，這保證了 1Hz 的數學準確性
                     t = env.data.time
                     current_bias = 0.0 if p_auto else p_turn
                     num_j = len(env.data.ctrl)
+
+                    ###############################################
+                     # --- 自動修正邏輯 ---
+                    # y_current = env.data.qpos[1]  # 取得當前 Y 座標（紅線是 Y=0）
+
+                    # # 修正增益 (Kp)，如果修正太慢就調大，如果魚左右晃動太厲害就調小
+                    # Kp = 0.2 
+                    # auto_correction = -y_current * Kp
+
+                    # # 最終偏壓 = 手動調整值 + 自動修正值
+                    # final_bias = p_turn + auto_correction
+                    #############################################
+                    # 計算控制量 (S型波)
                     ctrl = [current_bias + (p_amp * (0.4 + 0.6 * (i/(num_j-1)))) * np.sin(2 * np.pi * p_freq * t - i * p_step) for i in range(num_j)]
                     
                     with viewer.lock():
@@ -176,17 +195,14 @@ def run_mujoco(panel: ControlPanel, xml_path="eel.xml"):
                     trial_speeds.append(speed)
                     with panel.lock: panel.current_speed = speed
 
-                   # 碰撞檢測修正段落
+                    # 碰撞檢測
                     is_collided = False
                     if env.data.ncon > 0:
                         for i in range(env.data.ncon):
                             con = env.data.contact[i]
-                            # 修正這裡：使用 mujoco.mjtObj.mjOBJ_GEOM
                             n1 = mujoco.mj_id2name(env.model, mujoco.mjtObj.mjOBJ_GEOM, con.geom1)
                             n2 = mujoco.mj_id2name(env.model, mujoco.mjtObj.mjOBJ_GEOM, con.geom2)
-
-                            if (n1 == "base_link_collision" and n2 == "wall_front") or \
-                               (n1 == "wall_front" and n2 == "base_link_collision"):
+                            if (n1 == "base_link_collision" and n2 == "wall_front") or (n1 == "wall_front" and n2 == "base_link_collision"):
                                 is_collided = True
                                 break
 
@@ -199,40 +215,34 @@ def run_mujoco(panel: ControlPanel, xml_path="eel.xml"):
                         is_waiting, wait_start_time = True, time.time()
                 
                 else:
-                    # 當等待 1.2 秒結束後執行重置
                     if time.time() - wait_start_time > 1.2:
                         with panel.lock:
                             if panel.auto_mode:
-                                # --- 自動模式 (Start Exp) 的邏輯 ---
                                 panel.queue_idx += 1
                                 if panel.queue_idx >= len(panel.experiment_queue):
-                                    print("🎉 所有實驗已完成！")
-                                    panel.auto_mode = False
-                                    panel.paused = True # 實驗全部做完才停
-                                else:
-                                    panel.paused = False # 還有下一組，繼續跑
+                                    panel.auto_mode, panel.paused = False, True
                             else:
-                                # --- 手動模式 (Run/Pause) 的邏輯 ---
-                                # ✅ 關鍵：手動模式游完一次後，強制設為暫停
                                 panel.paused = True 
-                                print("手動游動結束，已重置並暫停。")
-                            
                             panel._update_status_ui_text()
 
-                        # 執行重置動作
                         panel._apply_current_queue()
                         with viewer.lock():
                             mujoco.mj_resetData(env.model, env.data)
                             env.data.qpos[:] = initial_qpos
                             mujoco.mj_forward(env.model, env.data)
-                        
-                        trial_speeds = []
-                        is_waiting = False
+                        trial_speeds, is_waiting = [], False
 
-            viewer.sync()
+            # --- 【優化】控制渲染頻率 ---
+            step_counter += 1
+            if step_counter % frame_skip == 0:
+                viewer.sync()
+
+            # --- 【關鍵】強制時間同步 ---
+            # 物理步長是 0.002 秒
+            dt = env.model.opt.timestep
             elapsed = time.time() - step_start
-            if env.model.opt.timestep > elapsed:
-                time.sleep(env.model.opt.timestep - elapsed)
+            if dt > elapsed:
+                time.sleep(dt - elapsed) # 如果運算太快，就讓 CPU 休息到滿 0.002 秒
 
 if __name__ == "__main__":
     p = ControlPanel()

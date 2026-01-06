@@ -6,6 +6,7 @@
   <visual>
     <global fovy="45" azimuth="135" elevation="-20"/>
     <quality shadowsize="2048"/>
+    <!-- <global offwidth="1280" offheight="720"/> -->
     <rgba fog="0 0.5 0.8 1"/> 
     <map fogstart="1" fogend="5"/> 
   </visual>

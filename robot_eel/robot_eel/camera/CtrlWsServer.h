@@ -9,7 +9,8 @@ namespace CtrlWsServer
 
     void broadcastCtrlParams(const ControlPacket &pkt);
 
-    void broadcastServoStatus(uint8_t count,
+    void broadcastServoStatus(uint8_t  count,
+                              uint32_t seq,
                               const float *target,
                               const float *actual,
                               const float *error);

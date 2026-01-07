@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <WebSocketsServer.h>
 
-#include "wifi_init.h"
+// #include "wifi_init.h"
 #include "camera_init.h"
 #include "cam_stream.h"
 
@@ -20,7 +20,7 @@ void setup()
     Serial.println("\nESP32-CAM Booting...");
 
     // ============ Wi-Fi =================
-    initWiFi();
+    // initWiFi();
 
     // ============ Camera ===============
     initCamera();

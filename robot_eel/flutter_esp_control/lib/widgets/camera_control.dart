@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../api/esp_api.dart';
 
@@ -11,6 +12,8 @@ class CameraControlPanel extends StatefulWidget {
 class _CameraControlPanelState extends State<CameraControlPanel> {
   String resolution = "SVGA";
   double quality = 10;
+
+  Timer? debounce; // ←←← 這裡宣告 Timer
 
   final Map<String, int> frameSizeMap = {
     "UXGA": 11,
@@ -44,10 +47,6 @@ class _CameraControlPanelState extends State<CameraControlPanel> {
     WsControlApi.setCameraParam({"framesize": frameSizeMap[value]!});
   }
 
-  void applyQuality(double v) {
-    WsControlApi.setCameraParam({"quality": v.toInt()});
-  }
-
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -73,13 +72,26 @@ class _CameraControlPanelState extends State<CameraControlPanel> {
             const SizedBox(height: 20),
 
             const Text("JPEG Quality"),
+
             Slider(
               value: quality,
               min: 5,
               max: 60,
               divisions: 55,
               label: quality.toInt().toString(),
-              onChanged: applyQuality,
+
+              /// 只更新畫面，不送 WS
+              onChanged: (v) {
+                setState(() => quality = v);
+              },
+
+              /// 滑動結束後再送出
+              onChangeEnd: (v) {
+                debounce?.cancel();
+                debounce = Timer(const Duration(milliseconds: 300), () {
+                  WsControlApi.setCameraParam({"quality": v.toInt()});
+                });
+              },
             ),
           ],
         ),

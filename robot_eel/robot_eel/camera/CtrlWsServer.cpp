@@ -1,5 +1,7 @@
 #include "CtrlWsServer.h"
 #include <ArduinoJson.h>
+#include "wifi_manager.h"
+#include "config.h"
 
 namespace {
 
@@ -7,11 +9,10 @@ WebSocketsServer* g_ws = nullptr;
 ControlPacket     g_pkt;
 bool              debugMode = false;
 
-} // anonymous namespace
-
+} // anonymous
 
 // ==================================================
-// 廣播 ctrl_params 給所有 WebSocket client
+// 廣播 ctrl_params
 // ==================================================
 void CtrlWsServer::broadcastCtrlParams(const ControlPacket &p)
 {
@@ -34,9 +35,8 @@ void CtrlWsServer::broadcastCtrlParams(const ControlPacket &p)
     g_ws->broadcastTXT(out);
 }
 
-
 // ==================================================
-// 廣播 servo_status 給所有 WebSocket client
+// 廣播 servo_status
 // ==================================================
 void CtrlWsServer::broadcastServoStatus(
     uint8_t  count,
@@ -69,6 +69,36 @@ void CtrlWsServer::broadcastServoStatus(
     g_ws->broadcastTXT(out);
 }
 
+// ==================================================
+// WiFi Status / Scan
+// ==================================================
+void CtrlWsServer::sendWifiStatus(uint8_t clientNum, bool broadcast)
+{
+    if (!g_ws) return;
+
+    StaticJsonDocument<512> doc;
+    buildWifiStatusJson(doc);
+
+    String out;
+    serializeJson(doc, out);
+
+    if (broadcast)
+        g_ws->broadcastTXT(out);
+    else
+        g_ws->sendTXT(clientNum, out);
+}
+
+void CtrlWsServer::sendWifiScanResult(uint8_t clientNum)
+{
+    if (!g_ws) return;
+
+    StaticJsonDocument<1024> doc;
+    buildWifiScanJson(doc);
+
+    String out;
+    serializeJson(doc, out);
+    g_ws->sendTXT(clientNum, out);
+}
 
 // ==================================================
 // INIT
@@ -77,7 +107,7 @@ void CtrlWsServer::begin(WebSocketsServer &ws)
 {
     g_ws = &ws;
 
-    // ===== UART callback 綁定：ctrl_params =====
+    // UART callback → ctrl_params
     CtrlUartBridge::onCtrlParams =
         [](const ControlPacket &p)
         {
@@ -85,11 +115,10 @@ void CtrlWsServer::begin(WebSocketsServer &ws)
             CtrlWsServer::broadcastCtrlParams(p);
         };
 
-    // ===== UART callback 綁定：servo_status =====
+    // UART callback → servo_status
     CtrlUartBridge::onServoStatus =
         [](const ServoStatus &s)
         {
-            // 只接受正確 header（保險）
             if (s.header != SERVO_STATUS_HEADER) return;
 
             CtrlWsServer::broadcastServoStatus(
@@ -101,7 +130,7 @@ void CtrlWsServer::begin(WebSocketsServer &ws)
             );
         };
 
-    // ===== WebSocket handler =====
+    // WebSocket handler
     ws.onEvent([](uint8_t num,
                   WStype_t type,
                   uint8_t *payload,
@@ -112,7 +141,7 @@ void CtrlWsServer::begin(WebSocketsServer &ws)
         StaticJsonDocument<256> doc;
         if (deserializeJson(doc, payload, len)) return;
 
-        const char *cmd = doc["cmd"];
+        const char *cmd = doc["cmd"] | "";
 
         // ---- Debug toggle ----
         if (strcmp(cmd, "debug_on") == 0) {
@@ -120,14 +149,13 @@ void CtrlWsServer::begin(WebSocketsServer &ws)
             g_ws->sendTXT(num, "{\"debug\":true}");
             return;
         }
-
         if (strcmp(cmd, "debug_off") == 0) {
             debugMode = false;
             g_ws->sendTXT(num, "{\"debug\":false}");
             return;
         }
 
-        // ---- Set Param ----
+        // ---- Control Params ----
         if (strcmp(cmd, "set_param") == 0)
         {
             if (doc.containsKey("Ajoint"))       g_pkt.Ajoint      = doc["Ajoint"];
@@ -139,8 +167,39 @@ void CtrlWsServer::begin(WebSocketsServer &ws)
             if (doc.containsKey("feedbackGain")) g_pkt.feedbackGain= doc["feedbackGain"];
 
             CtrlUartBridge::sendCtrlParams(g_pkt);
-
             g_ws->sendTXT(num, "{\"ok\":true}");
+            return;
+        }
+
+        // ---- Camera Param (你原本就有的邏輯，可放回來)
+        if (strcmp(cmd, "camera_param") == 0) {
+            // 這段照你原本使用 esp_camera_sensor_get() 那段放回去即可
+            // ...
+            return;
+        }
+
+        // ---- WiFi Status ----
+        if (strcmp(cmd, "wifi_status") == 0) {
+            CtrlWsServer::sendWifiStatus(num, false);
+            return;
+        }
+
+        // ---- WiFi Scan ----
+        if (strcmp(cmd, "wifi_scan") == 0) {
+            CtrlWsServer::sendWifiScanResult(num);
+            return;
+        }
+
+        // ---- WiFi Save ----
+        if (strcmp(cmd, "wifi_save") == 0) {
+            const char* ssid = doc["ssid"] | "";
+            const char* pass = doc["pass"] | "";
+            if (strlen(ssid) > 0) {
+                addOrUpdateWifi(String(ssid), String(pass));
+                g_ws->sendTXT(num, "{\"ok\":true}");
+            } else {
+                g_ws->sendTXT(num, "{\"ok\":false,\"error\":\"ssid empty\"}");
+            }
             return;
         }
 

@@ -21,8 +21,10 @@ class _SystemStatusState extends State<SystemStatus> {
     super.initState();
 
     WsControlApi.stream().listen((msg) {
-      if (msg["type"] != "ctrl_params") return;
+      if (msg is! Map) return;
       if (!mounted) return;
+      if (!msg.containsKey("type")) return;
+      if (msg["type"] != "ctrl_params") return;
 
       setState(() {
         freq = (msg["frequency"] ?? double.nan).toDouble();

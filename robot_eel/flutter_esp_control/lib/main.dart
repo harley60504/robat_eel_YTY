@@ -2,9 +2,14 @@ import 'package:flutter/material.dart';
 import 'pages/dashboard_page.dart';
 import 'pages/camera_page.dart';
 import 'pages/wifi_page.dart';
+import 'api/esp_api.dart';
 
 void main() {
   runApp(const ESP32ControlApp());
+  // 🔒 AP 模式下，等網路穩定再連 WS
+  Future.delayed(const Duration(seconds: 1), () {
+    WsControlApi.stream();
+  });
 }
 
 class ESP32ControlApp extends StatelessWidget {

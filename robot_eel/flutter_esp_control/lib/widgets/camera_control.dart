@@ -13,7 +13,7 @@ class _CameraControlPanelState extends State<CameraControlPanel> {
   String resolution = "SVGA";
   double quality = 10;
 
-  Timer? debounce; // ←←← 這裡宣告 Timer
+  Timer? debounce;
 
   final Map<String, int> frameSizeMap = {
     "UXGA": 11,
@@ -27,18 +27,28 @@ class _CameraControlPanelState extends State<CameraControlPanel> {
     super.initState();
 
     WsControlApi.stream().listen((msg) {
-      if (msg["type"] == "camera_param") {
+      try {
+        /// --------- 安全檢查 ---------
+        if (msg is! Map) return;
+        if (!mounted) return;
+        if (!msg.containsKey("type")) return;
+        if (msg["type"] != "camera_param") return;
+
         setState(() {
+          /// framesize
           if (msg.containsKey("framesize")) {
             final rev = {for (final e in frameSizeMap.entries) e.value: e.key};
 
             resolution = rev[msg["framesize"]] ?? resolution;
           }
 
+          /// quality
           if (msg.containsKey("quality")) {
             quality = (msg["quality"] ?? quality).toDouble();
           }
         });
+      } catch (e) {
+        print("Camera WS error: $e");
       }
     });
   }
@@ -80,12 +90,8 @@ class _CameraControlPanelState extends State<CameraControlPanel> {
               divisions: 55,
               label: quality.toInt().toString(),
 
-              /// 只更新畫面，不送 WS
-              onChanged: (v) {
-                setState(() => quality = v);
-              },
+              onChanged: (v) => setState(() => quality = v),
 
-              /// 滑動結束後再送出
               onChangeEnd: (v) {
                 debounce?.cancel();
                 debounce = Timer(const Duration(milliseconds: 300), () {

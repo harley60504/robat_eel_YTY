@@ -40,7 +40,9 @@ class _ServoTableState extends State<ServoTable> {
     ]);
 
     sub = WsControlApi.stream().listen((msg) {
+      if (msg is! Map) return;
       if (!mounted) return;
+      if (!msg.containsKey("type")) return;
       if (msg["type"] != "servo_status") return;
 
       final int seq = msg["seq"] ?? -1;

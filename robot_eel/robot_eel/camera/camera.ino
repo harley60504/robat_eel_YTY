@@ -7,8 +7,8 @@
 
 #include "CtrlUartBridge.h"
 #include "CtrlWsServer.h"
-
-
+#include "wifi_manager.h"
+#include <Preferences.h>
 // ========= WebSocket Ports =========
 WebSocketsServer wsCam(81);    // 影像
 WebSocketsServer wsCtrl(82);   // 控制
@@ -16,12 +16,20 @@ WebSocketsServer wsCtrl(82);   // 控制
 
 void setup()
 {
+    // Preferences prefs;
+    // prefs.begin("wifi", false);
+    // prefs.remove("list");   // ← 清掉！
+    // prefs.end();
+
+    // Serial.println("WiFi list cleared!");
+
+    // while(true);   // 防止繼續執
     Serial.begin(115200);
     Serial.println("\nESP32-CAM Booting...");
 
     // ============ Wi-Fi =================
     // initWiFi();
-
+    startWifiApSta();
     // ============ Camera ===============
     initCamera();
 

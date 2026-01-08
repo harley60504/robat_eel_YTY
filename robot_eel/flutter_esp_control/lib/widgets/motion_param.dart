@@ -20,14 +20,12 @@ class _MotionParamState extends State<MotionParam> {
   void initState() {
     super.initState();
 
-    // 先請 ESP32 回傳目前參數
-    WsControlApi.getParams();
-
-    // 監聽 WS
     WsControlApi.stream().listen((msg) {
+      if (msg is! Map) return;
+      if (!mounted) return;
+      if (!msg.containsKey("type")) return;
       if (msg["type"] != "ctrl_params") return;
 
-      // 只在第一次同步更新 input 預設值
       if (firstSync) {
         freqCtrl.text = msg["frequency"].toStringAsFixed(2);
         ampCtrl.text = msg["Ajoint"].toStringAsFixed(2);

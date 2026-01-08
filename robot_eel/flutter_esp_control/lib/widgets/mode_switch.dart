@@ -18,16 +18,16 @@ class _ModeSwitchState extends State<ModeSwitch> {
     super.initState();
 
     sub = WsControlApi.stream().listen((msg) {
+      if (msg is! Map) return;
+      if (!mounted) return;
+      if (!msg.containsKey("type")) return;
       if (msg["type"] != "ctrl_params") return;
 
       final newMode = msg["mode"] ?? -1;
-
       if (newMode != mode && mounted) {
         setState(() => mode = newMode);
       }
     });
-
-    WsControlApi.getParams();
   }
 
   @override

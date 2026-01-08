@@ -1,15 +1,28 @@
 #include "CtrlWsServer.h"
+
 #include <ArduinoJson.h>
+#include <esp_camera.h>
+
 #include "wifi_manager.h"
 #include "config.h"
 
 namespace {
 
+// WebSocket instance
 WebSocketsServer* g_ws = nullptr;
-ControlPacket     g_pkt;
-bool              debugMode = false;
 
-} // anonymous
+// 最新控制參數快取
+ControlPacket g_pkt;
+
+// Debug flag
+bool debugMode = false;
+
+// servo_status 廣播頻率限制（40 Hz）
+unsigned long lastServoBroadcast = 0;
+const unsigned long SERVO_INTERVAL_MS = 25;
+
+} // anonymous namespace
+
 
 // ==================================================
 // 廣播 ctrl_params
@@ -20,23 +33,24 @@ void CtrlWsServer::broadcastCtrlParams(const ControlPacket &p)
 
     StaticJsonDocument<256> doc;
 
-    doc["type"]        = "ctrl_params";
-    doc["Ajoint"]      = p.Ajoint;
-    doc["frequency"]   = p.frequency;
-    doc["lambda"]      = p.lambda;
-    doc["L"]           = p.L;
-    doc["paused"]      = p.isPaused;
-    doc["mode"]        = p.controlMode;
-    doc["useFeedback"] = p.useFeedback;
-    doc["feedbackGain"]= p.feedbackGain;
+    doc["type"]         = "ctrl_params";
+    doc["Ajoint"]       = p.Ajoint;
+    doc["frequency"]    = p.frequency;
+    doc["lambda"]       = p.lambda;
+    doc["L"]            = p.L;
+    doc["paused"]       = p.isPaused;
+    doc["mode"]         = p.controlMode;
+    doc["useFeedback"]  = p.useFeedback;
+    doc["feedbackGain"] = p.feedbackGain;
 
     String out;
     serializeJson(doc, out);
     g_ws->broadcastTXT(out);
 }
 
+
 // ==================================================
-// 廣播 servo_status
+// 廣播 servo_status（含頻率限制）
 // ==================================================
 void CtrlWsServer::broadcastServoStatus(
     uint8_t  count,
@@ -47,18 +61,22 @@ void CtrlWsServer::broadcastServoStatus(
 {
     if (!g_ws) return;
 
-    StaticJsonDocument<512> doc;
+    unsigned long now = millis();
+    if (now - lastServoBroadcast < SERVO_INTERVAL_MS)
+        return;
 
+    lastServoBroadcast = now;
+
+    StaticJsonDocument<512> doc;
     doc["type"]  = "servo_status";
     doc["seq"]   = seq;
     doc["count"] = count;
 
-    auto t = doc.createNestedArray("target");
-    auto a = doc.createNestedArray("actual");
-    auto e = doc.createNestedArray("error");
+    JsonArray t = doc.createNestedArray("target");
+    JsonArray a = doc.createNestedArray("actual");
+    JsonArray e = doc.createNestedArray("error");
 
-    for (int i = 0; i < count; ++i)
-    {
+    for (int i = 0; i < count; ++i) {
         t.add(target[i]);
         a.add(actual[i]);
         e.add(error[i]);
@@ -69,8 +87,9 @@ void CtrlWsServer::broadcastServoStatus(
     g_ws->broadcastTXT(out);
 }
 
+
 // ==================================================
-// WiFi Status / Scan
+// Wi-Fi Status
 // ==================================================
 void CtrlWsServer::sendWifiStatus(uint8_t clientNum, bool broadcast)
 {
@@ -88,6 +107,10 @@ void CtrlWsServer::sendWifiStatus(uint8_t clientNum, bool broadcast)
         g_ws->sendTXT(clientNum, out);
 }
 
+
+// ==================================================
+// Wi-Fi Scan
+// ==================================================
 void CtrlWsServer::sendWifiScanResult(uint8_t clientNum)
 {
     if (!g_ws) return;
@@ -100,6 +123,29 @@ void CtrlWsServer::sendWifiScanResult(uint8_t clientNum)
     g_ws->sendTXT(clientNum, out);
 }
 
+
+// ==================================================
+// Wi-Fi List（⭐新增，不影響原本任何功能）
+// ==================================================
+static void sendWifiList(uint8_t clientNum)
+{
+    if (!g_ws) return;
+
+    StaticJsonDocument<512> doc;
+    doc["type"] = "wifi_list";
+
+    JsonArray arr = doc.createNestedArray("list");
+    for (auto &w : loadWiFiList()) {
+        JsonObject o = arr.createNestedObject();
+        o["ssid"] = w.first;
+    }
+
+    String out;
+    serializeJson(doc, out);
+    g_ws->sendTXT(clientNum, out);
+}
+
+
 // ==================================================
 // INIT
 // ==================================================
@@ -107,7 +153,7 @@ void CtrlWsServer::begin(WebSocketsServer &ws)
 {
     g_ws = &ws;
 
-    // UART callback → ctrl_params
+    // UART → ctrl_params
     CtrlUartBridge::onCtrlParams =
         [](const ControlPacket &p)
         {
@@ -115,7 +161,7 @@ void CtrlWsServer::begin(WebSocketsServer &ws)
             CtrlWsServer::broadcastCtrlParams(p);
         };
 
-    // UART callback → servo_status
+    // UART → servo_status
     CtrlUartBridge::onServoStatus =
         [](const ServoStatus &s)
         {
@@ -130,7 +176,10 @@ void CtrlWsServer::begin(WebSocketsServer &ws)
             );
         };
 
+
+    // ============================
     // WebSocket handler
+    // ============================
     ws.onEvent([](uint8_t num,
                   WStype_t type,
                   uint8_t *payload,
@@ -141,69 +190,133 @@ void CtrlWsServer::begin(WebSocketsServer &ws)
         StaticJsonDocument<256> doc;
         if (deserializeJson(doc, payload, len)) return;
 
-        const char *cmd = doc["cmd"] | "";
+        const char* cmd = doc["cmd"] | "";
 
-        // ---- Debug toggle ----
-        if (strcmp(cmd, "debug_on") == 0) {
+        // ---------- Debug ----------
+        if (!strcmp(cmd, "debug_on")) {
             debugMode = true;
-            g_ws->sendTXT(num, "{\"debug\":true}");
-            return;
-        }
-        if (strcmp(cmd, "debug_off") == 0) {
-            debugMode = false;
-            g_ws->sendTXT(num, "{\"debug\":false}");
+            g_ws->sendTXT(num, "{\"type\":\"debug\",\"debug\":true}");
             return;
         }
 
-        // ---- Control Params ----
-        if (strcmp(cmd, "set_param") == 0)
-        {
-            if (doc.containsKey("Ajoint"))       g_pkt.Ajoint      = doc["Ajoint"];
-            if (doc.containsKey("frequency"))    g_pkt.frequency   = doc["frequency"];
-            if (doc.containsKey("lambda"))       g_pkt.lambda      = doc["lambda"];
-            if (doc.containsKey("L"))            g_pkt.L           = doc["L"];
-            if (doc.containsKey("paused"))       g_pkt.isPaused    = doc["paused"];
-            if (doc.containsKey("mode"))         g_pkt.controlMode = doc["mode"];
-            if (doc.containsKey("feedbackGain")) g_pkt.feedbackGain= doc["feedbackGain"];
+        if (!strcmp(cmd, "debug_off")) {
+            debugMode = false;
+            g_ws->sendTXT(num, "{\"type\":\"debug\",\"debug\":false}");
+            return;
+        }
+
+        // ---------- Get Params ----------
+        if (!strcmp(cmd, "get_params")) {
+            StaticJsonDocument<256> out;
+            out["type"]         = "ctrl_params";
+            out["Ajoint"]       = g_pkt.Ajoint;
+            out["frequency"]    = g_pkt.frequency;
+            out["lambda"]       = g_pkt.lambda;
+            out["L"]            = g_pkt.L;
+            out["paused"]       = g_pkt.isPaused;
+            out["mode"]         = g_pkt.controlMode;
+            out["feedbackGain"] = g_pkt.feedbackGain;
+
+            String txt;
+            serializeJson(out, txt);
+            g_ws->sendTXT(num, txt);
+            return;
+        }
+
+        // ---------- Set Param ----------
+        if (!strcmp(cmd, "set_param")) {
+            if (doc.containsKey("Ajoint"))       g_pkt.Ajoint       = doc["Ajoint"];
+            if (doc.containsKey("frequency"))    g_pkt.frequency    = doc["frequency"];
+            if (doc.containsKey("lambda"))       g_pkt.lambda       = doc["lambda"];
+            if (doc.containsKey("L"))            g_pkt.L            = doc["L"];
+            if (doc.containsKey("paused"))       g_pkt.isPaused     = doc["paused"];
+            if (doc.containsKey("mode"))         g_pkt.controlMode  = doc["mode"];
+            if (doc.containsKey("feedbackGain")) g_pkt.feedbackGain = doc["feedbackGain"];
 
             CtrlUartBridge::sendCtrlParams(g_pkt);
-            g_ws->sendTXT(num, "{\"ok\":true}");
+            g_ws->sendTXT(num, "{\"type\":\"ack\",\"ok\":true}");
             return;
         }
 
-        // ---- Camera Param (你原本就有的邏輯，可放回來)
-        if (strcmp(cmd, "camera_param") == 0) {
-            // 這段照你原本使用 esp_camera_sensor_get() 那段放回去即可
-            // ...
+        // ---------- Camera Param ----------
+        if (!strcmp(cmd, "camera_param")) {
+            sensor_t *s = esp_camera_sensor_get();
+
+            if (doc.containsKey("quality"))
+                s->set_quality(s, doc["quality"]);
+
+            if (doc.containsKey("framesize"))
+                s->set_framesize(s, (framesize_t)doc["framesize"]);
+
+            StaticJsonDocument<128> out;
+            out["type"] = "camera_param";
+            if (doc.containsKey("quality"))   out["quality"]   = doc["quality"];
+            if (doc.containsKey("framesize")) out["framesize"] = doc["framesize"];
+
+            String txt;
+            serializeJson(out, txt);
+            g_ws->broadcastTXT(txt);
             return;
         }
 
-        // ---- WiFi Status ----
-        if (strcmp(cmd, "wifi_status") == 0) {
+        // ---------- Wi-Fi Status ----------
+        if (!strcmp(cmd, "wifi_status")) {
             CtrlWsServer::sendWifiStatus(num, false);
             return;
         }
 
-        // ---- WiFi Scan ----
-        if (strcmp(cmd, "wifi_scan") == 0) {
+        // ---------- Wi-Fi Scan ----------
+        if (!strcmp(cmd, "wifi_scan")) {
             CtrlWsServer::sendWifiScanResult(num);
             return;
         }
 
-        // ---- WiFi Save ----
-        if (strcmp(cmd, "wifi_save") == 0) {
-            const char* ssid = doc["ssid"] | "";
-            const char* pass = doc["pass"] | "";
-            if (strlen(ssid) > 0) {
-                addOrUpdateWifi(String(ssid), String(pass));
-                g_ws->sendTXT(num, "{\"ok\":true}");
-            } else {
-                g_ws->sendTXT(num, "{\"ok\":false,\"error\":\"ssid empty\"}");
-            }
+        // ---------- Wi-Fi List ----------
+        if (!strcmp(cmd, "wifi_list")) {
+            sendWifiList(num);
             return;
         }
 
-        // ---- Unknown ----
-        g_ws->sendTXT(num, "{\"error\":\"unknown cmd\"}");
+        // ---------- Wi-Fi Connect（不存） ----------
+        if (!strcmp(cmd, "wifi_connect")) {
+            StaticJsonDocument<128> out;
+            out["type"] = "wifi_connect_result";
+
+            bool ok = wifiConnectNow(
+                String((const char*)doc["ssid"]),
+                String((const char*)doc["pass"])
+            );
+
+            out["ok"] = ok;
+
+            String txt;
+            serializeJson(out, txt);
+            g_ws->sendTXT(num, txt);
+
+            CtrlWsServer::sendWifiStatus(num, true);
+            return;
+        }
+
+        // ---------- Wi-Fi Save ----------
+        if (!strcmp(cmd, "wifi_save")) {
+            addOrUpdateWifi(
+                String((const char*)doc["ssid"]),
+                String((const char*)doc["pass"])
+            );
+
+            CtrlWsServer::sendWifiStatus(num, true);
+            return;
+        }
+
+        // ---------- Wi-Fi Delete ----------
+        if (!strcmp(cmd, "wifi_delete")) {
+            deleteWifi(String((const char*)doc["ssid"]));
+            CtrlWsServer::sendWifiStatus(num, true);
+            return;
+        }
+
+        // ---------- Unknown ----------
+        g_ws->sendTXT(num,
+            "{\"type\":\"error\",\"msg\":\"unknown cmd\"}");
     });
 }

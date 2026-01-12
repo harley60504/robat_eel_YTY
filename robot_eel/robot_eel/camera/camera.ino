@@ -64,6 +64,6 @@ void loop()
 {
     wsCam.loop();     // 影像 WS Client
     wsCtrl.loop();    // 控制 WS Client
-
+    CtrlWsServer::tick();   // ⭐ Wi-Fi 低頻率主動廣播
     sendCameraFrame(wsCam);   // 傳 MJPEG
 }

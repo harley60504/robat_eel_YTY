@@ -3,27 +3,44 @@
 #include <ESPmDNS.h>
 #include <Preferences.h>
 #include <ArduinoJson.h>
+#include <vector>
+#include <algorithm>
 #include "esp_wifi.h"
 #include "config.h"
 
 static Preferences wifiPrefs;
 static bool mdnsStarted = false;
 
+/* =====================================================
+ * ⚠️【重要原則】
+ * - WiFi.mode() 只能在 startWifiApSta() 呼叫一次
+ * - 之後任何地方都「不得」再改 mode
+ * - STA 連線只用 WiFi.begin()
+ * ===================================================== */
+
+
 /* =============================
  *  STA 立即連線（不寫 NVS）
+ *  ❗ 不改 WiFi.mode / 不動 AP
  * ============================= */
 inline bool wifiConnectNow(const String& ssid, const String& pass)
 {
-  WiFi.mode(WIFI_AP_STA);
+  // ❌ 絕對不能再呼叫 WiFi.mode()
   WiFi.begin(ssid.c_str(), pass.c_str());
 
   unsigned long t0 = millis();
   while (millis() - t0 < 8000) {
-    if (WiFi.status() == WL_CONNECTED) return true;
+    if (WiFi.status() == WL_CONNECTED) {
+      return true;
+    }
     delay(200);
   }
+
+  // ❌ 失敗也不能動 AP / mode
+  WiFi.disconnect(false); // 只斷 STA
   return false;
 }
+
 
 /* =============================
  *  NVS 讀取
@@ -36,13 +53,18 @@ inline std::vector<std::pair<String,String>> loadWiFiList()
 
   std::vector<std::pair<String,String>> list;
   DynamicJsonDocument doc(2048);
+
   if (deserializeJson(doc, raw)) return list;
 
-  for (JsonObject o : doc.as<JsonArray>())
-    list.push_back({ o["ssid"].as<String>(), o["pass"].as<String>() });
-
+  for (JsonObject o : doc.as<JsonArray>()) {
+    list.push_back({
+      o["ssid"].as<String>(),
+      o["pass"].as<String>()
+    });
+  }
   return list;
 }
+
 
 /* =============================
  *  NVS 儲存
@@ -66,6 +88,7 @@ inline void saveWiFiList(const std::vector<std::pair<String,String>>& list)
   wifiPrefs.end();
 }
 
+
 /* =============================
  *  新增 / 更新
  * ============================= */
@@ -81,9 +104,13 @@ inline void addOrUpdateWifi(const String& ssid, const String& pass)
       break;
     }
   }
-  if (!found) list.push_back({ssid, pass});
+
+  if (!found)
+    list.push_back({ssid, pass});
+
   saveWiFiList(list);
 }
+
 
 /* =============================
  *  刪除
@@ -91,13 +118,19 @@ inline void addOrUpdateWifi(const String& ssid, const String& pass)
 inline void deleteWifi(const String& ssid)
 {
   auto list = loadWiFiList();
+
   list.erase(
-    std::remove_if(list.begin(), list.end(),
-      [&](auto &w){ return w.first == ssid; }),
+    std::remove_if(
+      list.begin(),
+      list.end(),
+      [&](auto &w){ return w.first == ssid; }
+    ),
     list.end()
   );
+
   saveWiFiList(list);
 }
+
 
 /* =============================
  *  JSON：Wi-Fi 狀態
@@ -106,6 +139,7 @@ inline void buildWifiStatusJson(JsonDocument &doc)
 {
   doc["type"] = "wifi_status";
 
+  // AP 永遠存在
   doc["ap_ssid"] = AP_SSID;
   doc["ap_ip"]   = WiFi.softAPIP().toString();
 
@@ -123,12 +157,15 @@ inline void buildWifiStatusJson(JsonDocument &doc)
   }
 }
 
+
 /* =============================
  *  JSON：Wi-Fi Scan
+ *  ✔ 不改任何狀態
  * ============================= */
 inline void buildWifiScanJson(JsonDocument &doc)
 {
   doc["type"] = "wifi_scan";
+
   int n = WiFi.scanNetworks();
   JsonArray arr = doc.createNestedArray("list");
 
@@ -139,22 +176,33 @@ inline void buildWifiScanJson(JsonDocument &doc)
   }
 }
 
+
 /* =============================
- *  AP + 嘗試 STA
+ *  Wi-Fi 啟動（只呼叫一次）
  * ============================= */
 inline void startWifiApSta()
 {
+  // ⭐ 只在這裡設定 mode，一次而已
   WiFi.mode(WIFI_AP_STA);
+  WiFi.setSleep(false);
+  esp_wifi_set_ps(WIFI_PS_NONE);
+
+  // AP 永遠開
   WiFi.softAP(AP_SSID, AP_PASS);
+
   WiFi.setHostname(HOSTNAME);
 
+  // mDNS 只啟一次
   if (!mdnsStarted && MDNS.begin(HOSTNAME)) {
-    MDNS.addService("_ws","_tcp",80);
+    MDNS.addService("_ws", "_tcp", 80);
     mdnsStarted = true;
   }
 
+  // 嘗試已儲存 STA（不論成功或失敗）
   auto list = loadWiFiList();
   for (auto &w : list) {
-    if (wifiConnectNow(w.first, w.second)) break;
+    if (wifiConnectNow(w.first, w.second)) {
+      break;
+    }
   }
 }

@@ -21,16 +21,14 @@ class CameraPage extends StatelessWidget {
               Expanded(
                 child: AspectRatio(
                   aspectRatio: 4 / 3,
-                  child: CameraStreamWS(
-                    wsUrl: ApiConfig.wsStreamUrl,
-                  ),
+                  child: CameraStreamWS(wsUrl: ApiConfig.wsStreamUrl),
                 ),
               ),
 
               const SizedBox(width: 24),
 
               const SizedBox(
-                width: 260,          // 控制 panel 佔寬固定
+                width: 260, // 控制 panel 佔寬固定
                 child: CameraControlPanel(),
               ),
             ],

@@ -1,0 +1,32 @@
+name: flutter_esp_control
+description: ESP32 控制與影像串流的 Flutter App（Android 為主）
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.3
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # ===== UI / Icons =====
+  cupertino_icons: ^1.0.8
+
+  # ===== Network / Communication =====
+  web_socket_channel: ^2.4.0   # WebSocket（控制 / 串流）
+  http: ^1.1.0                 # HTTP（未來可用於 REST / 設定）
+
+  # ===== Data / Export =====
+  excel: ^4.0.2                # Servo log 匯出 Excel
+  path_provider: ^2.1.2        # Android / iOS 檔案儲存路徑
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

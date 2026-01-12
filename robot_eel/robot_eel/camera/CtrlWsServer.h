@@ -1,21 +1,24 @@
 #pragma once
-#include <WebSocketsServer.h>
-#include "ControltoCamera.h"
-#include "CtrlUartBridge.h"
 
-namespace CtrlWsServer
-{
+#include <WebSocketsServer.h>
+#include "CtrlUartBridge.h"   
+#include "ControltoCamera.h"
+// ===== CtrlWsServer =====
+namespace CtrlWsServer {
+
+    // 初始化（setup 時呼叫一次）
     void begin(WebSocketsServer &ws);
 
-    void broadcastCtrlParams(const ControlPacket &pkt);
+    // 每個 loop 呼叫（低頻 Wi-Fi 廣播）
+    void tick();
 
-    void broadcastServoStatus(uint8_t count,
-                              uint32_t seq,
-                              const float *target,
-                              const float *actual,
-                              const float *error);
-
-    // WiFi 相關：透過 ws 回傳 JSON
-    void sendWifiStatus(uint8_t clientNum = 0, bool broadcast = false);
-    void sendWifiScanResult(uint8_t clientNum);
+    // UART → WS
+    void broadcastCtrlParams(const ControlPacket &p);
+    void broadcastServoStatus(
+        uint8_t count,
+        uint32_t seq,
+        const float *target,
+        const float *actual,
+        const float *error
+    );
 }

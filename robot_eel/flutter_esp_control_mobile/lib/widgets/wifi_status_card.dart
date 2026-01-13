@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../api/esp_http_api.dart';
 import '../net/host_resolver.dart';
-import '../config.dart';
+import '../net/wifi_info.dart';
 
 class WiFiStatusCard extends StatefulWidget {
   const WiFiStatusCard({super.key});
@@ -13,6 +13,10 @@ class WiFiStatusCard extends StatefulWidget {
 class _WiFiStatusCardState extends State<WiFiStatusCard> {
   bool loading = true;
   String error = "";
+
+  // ✅ 手機目前 SSID（顯示用）
+  String phoneSsid = "-";
+  bool phoneSsidOk = false;
 
   // current
   bool connected = false;
@@ -26,7 +30,18 @@ class _WiFiStatusCardState extends State<WiFiStatusCard> {
   @override
   void initState() {
     super.initState();
-    refresh();
+
+    // ✅ 先用 bootSsid 立刻顯示（不等 refresh）
+    final boot = WifiInfo.bootSsid;
+    phoneSsidOk = boot != null;
+    phoneSsid = boot ?? "(開 App 時讀不到 SSID)";
+
+    // ✅ 不要 initState 直接 refresh（太早）
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 250), () {
+        if (mounted) refresh();
+      });
+    });
   }
 
   Future<void> refresh() async {
@@ -36,17 +51,22 @@ class _WiFiStatusCardState extends State<WiFiStatusCard> {
     });
 
     try {
-      // ✅ current
+      // ✅ 0) 手機 SSID：refresh 時才即時更新一次
+      final s = await WifiInfo.getCurrentSsid();
+      phoneSsidOk = s != null;
+      phoneSsid = s ?? "(讀不到 SSID，請稍後再試)";
+
+      // ✅ 1) current
       final current = await EspHttpApi.wifiCurrent();
       connected = current['connected'] ?? false;
       ssid = current['ssid'] ?? "-";
       ip = current['ip'] ?? "-";
       rssi = current['rssi'] ?? 0;
 
-      // ✅ saved list
+      // ✅ 2) saved list
       saved = await EspHttpApi.wifiSaved();
 
-      // ✅ connected + got ip => update cache
+      // ✅ 3) 如果已連線且有拿到 STA IP → 更新快取
       if (connected && ip != "-") {
         await HostResolver.updateCachesByStaIp(ip);
       }
@@ -56,135 +76,6 @@ class _WiFiStatusCardState extends State<WiFiStatusCard> {
 
     if (!mounted) return;
     setState(() => loading = false);
-  }
-
-  /// ✅ 連線（同時存進 ESP32 Saved List）
-  Future<void> connectDialog(String targetSsid) async {
-    final controller = TextEditingController();
-    bool connecting = false;
-    String dialogError = "";
-
-    await showDialog(
-      context: context,
-      builder: (_) => StatefulBuilder(
-        builder: (context, setStateDialog) {
-          return AlertDialog(
-            title: Text("連線到 $targetSsid"),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: controller,
-                  obscureText: true,
-                  decoration: const InputDecoration(labelText: "Wi-Fi 密碼"),
-                ),
-                if (dialogError.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text(dialogError, style: const TextStyle(color: Colors.red)),
-                ],
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: connecting ? null : () => Navigator.pop(context),
-                child: const Text("取消"),
-              ),
-              ElevatedButton(
-                onPressed: connecting
-                    ? null
-                    : () async {
-                        setStateDialog(() {
-                          connecting = true;
-                          dialogError = "";
-                        });
-
-                        try {
-                          // ✅ ESP32 連線 + 儲存
-                          final ok = await EspHttpApi.wifiConnect(
-                            targetSsid,
-                            controller.text,
-                          );
-
-                          if (!context.mounted) return;
-
-                          if (!ok) {
-                            setStateDialog(() {
-                              connecting = false;
-                              dialogError = "連線失敗";
-                            });
-                            return;
-                          }
-
-                          // ✅ 成功：關閉 dialog
-                          Navigator.pop(context);
-
-                          // ✅ 刷新狀態（拿到 STA IP）
-                          await refresh();
-
-                          // ✅ 如果已拿到 STA IP，切到 STA（變成 last_ip）
-                          if (connected && ip != "-") {
-                            await HostResolver.updateCachesByStaIp(ip);
-                            await ApiConfig.setHost(ip);
-                          }
-
-                          if (!mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text("已連線並儲存 $targetSsid")),
-                          );
-                        } catch (e) {
-                          setStateDialog(() {
-                            connecting = false;
-                            dialogError = "錯誤：$e";
-                          });
-                        }
-                      },
-                child: Text(connecting ? "連線中…" : "連線"),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  /// ✅ 刪除 Saved Wi-Fi
-  Future<void> deleteSaved(String targetSsid) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("刪除已儲存 Wi-Fi"),
-        content: Text("確定要刪除：$targetSsid ？"),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text("取消"),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text("刪除"),
-          ),
-        ],
-      ),
-    );
-
-    if (ok != true) return;
-
-    try {
-      final done = await EspHttpApi.wifiDelete(targetSsid);
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(done ? "已刪除 $targetSsid" : "刪除失敗")),
-      );
-
-      await refresh();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("刪除錯誤：$e")));
-    }
   }
 
   @override
@@ -200,6 +91,16 @@ class _WiFiStatusCardState extends State<WiFiStatusCard> {
               const Text("Wi-Fi 狀態總覽", style: TextStyle(fontSize: 20)),
               const SizedBox(height: 8),
 
+              // ✅ 手機 SSID 顯示（直接顯示 bootSsid → refresh 後更新）
+              Text(
+                "手機目前 Wi-Fi：$phoneSsid",
+                style: TextStyle(
+                  color: phoneSsidOk ? Colors.black : Colors.orange,
+                ),
+              ),
+
+              const SizedBox(height: 8),
+
               if (loading)
                 const Text("讀取中…")
               else if (error.isNotEmpty)
@@ -212,9 +113,9 @@ class _WiFiStatusCardState extends State<WiFiStatusCard> {
                     color: connected ? Colors.black : Colors.red,
                   ),
                 ),
-                SelectableText("SSID：$ssid"),
-                SelectableText("IP：$ip"),
-                Text("RSSI：$rssi dBm"),
+                SelectableText("ESP32 SSID：$ssid"),
+                SelectableText("ESP32 IP：$ip"),
+                Text("ESP32 RSSI：$rssi dBm"),
 
                 const Divider(height: 24),
 
@@ -229,28 +130,15 @@ class _WiFiStatusCardState extends State<WiFiStatusCard> {
                     (s) => ListTile(
                       contentPadding: EdgeInsets.zero,
                       title: Text(s),
-                      subtitle: const Text("點右側可連線 / 刪除"),
-                      trailing: Wrap(
-                        spacing: 6,
-                        children: [
-                          IconButton(
-                            tooltip: "重新連線 / 修改密碼",
-                            icon: const Icon(Icons.link),
-                            onPressed: () => connectDialog(s),
-                          ),
-                          IconButton(
-                            tooltip: "刪除",
-                            icon: const Icon(Icons.delete_outline),
-                            onPressed: () => deleteSaved(s),
-                          ),
-                        ],
-                      ),
                     ),
                   ),
               ],
 
               const SizedBox(height: 8),
-              ElevatedButton(onPressed: refresh, child: const Text("重新讀取")),
+              ElevatedButton(
+                onPressed: refresh,
+                child: const Text("重新讀取"),
+              ),
             ],
           ),
         ),

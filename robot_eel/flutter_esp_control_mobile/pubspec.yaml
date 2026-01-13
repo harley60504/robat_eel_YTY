@@ -15,16 +15,16 @@ dependencies:
   cupertino_icons: ^1.0.8
 
   # ===== Network / Communication =====
-  web_socket_channel: ^2.4.0   # WebSocket（控制 / 串流）
+  web_socket_channel: ^3.0.3   # WebSocket（控制 / 串流）
   http: ^1.2.0                 # HTTP（未來可用於 REST / 設定）
   shared_preferences: ^2.2.3
-  network_info_plus: ^6.0.1
-  connectivity_plus: ^6.0.5
+  network_info_plus: ^7.0.0
+  connectivity_plus: ^7.0.0
 
   # ===== Data / Export =====
   excel: ^4.0.2                # Servo log 匯出 Excel
   path_provider: ^2.1.2        # Android / iOS 檔案儲存路徑
-  share_plus: ^10.0.2
+  share_plus: ^12.0.1
 
 dev_dependencies:
   flutter_test:

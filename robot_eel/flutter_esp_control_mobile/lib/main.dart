@@ -7,16 +7,23 @@ import 'pages/wifi_page.dart';
 import 'api/esp_api.dart';
 import 'config.dart';
 import 'net/host_resolver.dart';
+import 'net/wifi_info.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  final host = await HostResolver.autoSelectHost();
-  await ApiConfig.setHost(host);
+  // ✅ 1) 開 App 先讀一次 SSID 存快取（給 UI 直接顯示）
+  await WifiInfo.initBootSsid();
+
+  // ✅ 2) 再做自動選 host
+  final r = await HostResolver.autoSelectHostEx();
+  await ApiConfig.setHost(r.host, reason: r.reason);
+
+  print("[BOOT] host=${ApiConfig.host}, via=${ApiConfig.hostReason}");
 
   runApp(const ESP32ControlApp());
 
-  // ✅ 確保 WS 啟動
+  // ✅ 3) WS 啟動
   Future.delayed(const Duration(seconds: 1), () {
     WsControlApi.ensureConnect();
   });
@@ -43,14 +50,20 @@ class MainLayout extends StatefulWidget {
 class _MainLayoutState extends State<MainLayout> {
   int _selectedIndex = 0;
 
-  final List<Widget> _pages = const [DashboardPage(), CameraPage(), WiFiPage()];
+  final List<Widget> _pages = const [
+    DashboardPage(),
+    CameraPage(),
+    WiFiPage(),
+  ];
 
   @override
   Widget build(BuildContext context) {
     final isMobile = MediaQuery.of(context).size.width < 740;
 
     return Scaffold(
-      appBar: AppBar(title: Text("ESP32 控制面板 - ${ApiConfig.host}")),
+      appBar: AppBar(
+        title: Text("ESP32 控制面板 - ${ApiConfig.host} (${ApiConfig.hostReason})"),
+      ),
       body: Row(
         children: [
           if (!isMobile) buildSidebar(),
@@ -62,29 +75,32 @@ class _MainLayoutState extends State<MainLayout> {
   }
 
   Widget buildBottomBar() => BottomNavigationBar(
-    currentIndex: _selectedIndex,
-    onTap: (i) => setState(() => _selectedIndex = i),
-    items: const [
-      BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: "Dashboard"),
-      BottomNavigationBarItem(icon: Icon(Icons.camera_alt), label: "Camera"),
-      BottomNavigationBarItem(icon: Icon(Icons.wifi), label: "WiFi"),
-    ],
-  );
+        currentIndex: _selectedIndex,
+        onTap: (i) => setState(() => _selectedIndex = i),
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: "Dashboard"),
+          BottomNavigationBarItem(icon: Icon(Icons.camera_alt), label: "Camera"),
+          BottomNavigationBarItem(icon: Icon(Icons.wifi), label: "WiFi"),
+        ],
+      );
 
   Widget buildSidebar() => NavigationRail(
-    selectedIndex: _selectedIndex,
-    onDestinationSelected: (i) => setState(() => _selectedIndex = i),
-    labelType: NavigationRailLabelType.all,
-    destinations: const [
-      NavigationRailDestination(
-        icon: Icon(Icons.dashboard),
-        label: Text("Dashboard"),
-      ),
-      NavigationRailDestination(
-        icon: Icon(Icons.camera_alt),
-        label: Text("Camera"),
-      ),
-      NavigationRailDestination(icon: Icon(Icons.wifi), label: Text("WiFi")),
-    ],
-  );
+        selectedIndex: _selectedIndex,
+        onDestinationSelected: (i) => setState(() => _selectedIndex = i),
+        labelType: NavigationRailLabelType.all,
+        destinations: const [
+          NavigationRailDestination(
+            icon: Icon(Icons.dashboard),
+            label: Text("Dashboard"),
+          ),
+          NavigationRailDestination(
+            icon: Icon(Icons.camera_alt),
+            label: Text("Camera"),
+          ),
+          NavigationRailDestination(
+            icon: Icon(Icons.wifi),
+            label: Text("WiFi"),
+          ),
+        ],
+      );
 }

@@ -16,7 +16,7 @@ dependencies:
 
   # ===== Network / Communication =====
   web_socket_channel: ^2.4.0   # WebSocket（控制 / 串流）
-  http: ^1.1.0                 # HTTP（未來可用於 REST / 設定）
+  http: ^1.2.0                 # HTTP（未來可用於 REST / 設定）
 
   # ===== Data / Export =====
   excel: ^4.0.2                # Servo log 匯出 Excel

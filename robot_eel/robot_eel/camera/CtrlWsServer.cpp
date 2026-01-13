@@ -87,32 +87,6 @@ void CtrlWsServer::tick()
         serializeJson(doc, out);
         g_ws->broadcastTXT(out);
     }
-
-    /* ---------- wifi_status ---------- */
-    {
-        StaticJsonDocument<256> doc;
-        buildWifiStatusJson(doc);
-
-        String out;
-        serializeJson(doc, out);
-        g_ws->broadcastTXT(out);
-    }
-
-    /* ---------- wifi_list ---------- */
-    {
-        StaticJsonDocument<512> doc;
-        doc["type"] = "wifi_list";
-
-        JsonArray arr = doc.createNestedArray("list");
-        for (auto &w : loadWiFiList()) {
-            JsonObject o = arr.createNestedObject();
-            o["ssid"] = w.first;
-        }
-
-        String out;
-        serializeJson(doc, out);
-        g_ws->broadcastTXT(out);
-    }
 }
 
 /* =========================================================
@@ -176,41 +150,6 @@ void CtrlWsServer::begin(WebSocketsServer &ws)
             return;
         }
 
-        /* ---- Wi-Fi ---- */
-        
-        if (!strcmp(cmd, "wifi_connect")) {
-            wifiConnectNow(doc["ssid"], doc["pass"]);
-            return;
-        }
-
-        if (!strcmp(cmd, "wifi_save")) {
-            addOrUpdateWifi(doc["ssid"], doc["pass"]);
-            return;
-        }
-
-        if (!strcmp(cmd, "wifi_delete")) {
-            deleteWifi(doc["ssid"]);
-            return;
-        }
-        if (!strcmp(cmd, "wifi_scan")) {
-            int n = WiFi.scanNetworks(/*async=*/false, /*hidden=*/true);
-
-            StaticJsonDocument<768> doc;
-            doc["type"] = "wifi_scan";
-
-            JsonArray arr = doc.createNestedArray("list");
-            for (int i = 0; i < n; i++) {
-                JsonObject o = arr.createNestedObject();
-                o["ssid"] = WiFi.SSID(i);
-                o["rssi"] = WiFi.RSSI(i);
-            }
-
-            String out;
-            serializeJson(doc, out);
-            g_ws->sendTXT(num, out);   // ⭐單播回給請求者
-
-            WiFi.scanDelete();
-            return;
-        }
+    
     });
 }

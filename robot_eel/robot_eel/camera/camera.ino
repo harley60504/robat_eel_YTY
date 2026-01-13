@@ -1,10 +1,9 @@
 #include <Arduino.h>
 #include <WebSocketsServer.h>
-
-// #include "wifi_init.h"
+#include <WebServer.h>
 #include "camera_init.h"
 #include "cam_stream.h"
-
+#include "wifi_http.h"
 #include "CtrlUartBridge.h"
 #include "CtrlWsServer.h"
 #include "wifi_manager.h"
@@ -12,7 +11,7 @@
 // ========= WebSocket Ports =========
 WebSocketsServer wsCam(81);    // 影像
 WebSocketsServer wsCtrl(82);   // 控制
-
+WebServer server(80);
 
 void setup()
 {
@@ -23,13 +22,12 @@ void setup()
 
     // Serial.println("WiFi list cleared!");
 
-    // while(true);   // 防止繼續執
+    // while(true);   // 防止繼續
     Serial.begin(115200);
-    Serial.println("\nESP32-CAM Booting...");
 
     // ============ Wi-Fi =================
-    // initWiFi();
     startWifiApSta();
+    setupWifiHttpApi();     // ⭐Wi-Fi HTTP
     // ============ Camera ===============
     initCamera();
 
@@ -54,7 +52,7 @@ void setup()
 
     wsCam.begin();
     wsCtrl.begin();
-
+    server.begin();
     Serial.println("System Ready.");
 }
 
@@ -64,6 +62,7 @@ void loop()
 {
     wsCam.loop();     // 影像 WS Client
     wsCtrl.loop();    // 控制 WS Client
+    server.handleClient(); 
     CtrlWsServer::tick();   // ⭐ Wi-Fi 低頻率主動廣播
     sendCameraFrame(wsCam);   // 傳 MJPEG
 }

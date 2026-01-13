@@ -8,43 +8,41 @@
 #include "esp_wifi.h"
 #include "config.h"
 
+// =====================================================
+// Global
+// =====================================================
 static Preferences wifiPrefs;
 static bool mdnsStarted = false;
 
-/* =====================================================
- * ⚠️【重要原則】
- * - WiFi.mode() 只能在 startWifiApSta() 呼叫一次
- * - 之後任何地方都「不得」再改 mode
- * - STA 連線只用 WiFi.begin()
- * ===================================================== */
-
-
-/* =============================
- *  STA 立即連線（不寫 NVS）
- *  ❗ 不改 WiFi.mode / 不動 AP
- * ============================= */
-inline bool wifiConnectNow(const String& ssid, const String& pass)
+// =====================================================
+// STA：只嘗試一次，失敗就回 idle
+// =====================================================
+inline bool wifiConnectOnce(const String& ssid, const String& pass)
 {
-  // ❌ 絕對不能再呼叫 WiFi.mode()
+  Serial.printf("[WiFi] Try STA: %s\n", ssid.c_str());
+
   WiFi.begin(ssid.c_str(), pass.c_str());
 
   unsigned long t0 = millis();
   while (millis() - t0 < 8000) {
     if (WiFi.status() == WL_CONNECTED) {
+      Serial.println("[WiFi] STA connected");
       return true;
     }
     delay(200);
   }
 
-  // ❌ 失敗也不能動 AP / mode
-  WiFi.disconnect(false); // 只斷 STA
+  // ⭐關鍵：把 STA 拉回 idle（這就是你之前穩的原因）
+  Serial.println("[WiFi] STA failed -> idle");
+  WiFi.disconnect(false, false);
+  esp_wifi_disconnect();
+
   return false;
 }
 
-
-/* =============================
- *  NVS 讀取
- * ============================= */
+// =====================================================
+// NVS load
+// =====================================================
 inline std::vector<std::pair<String,String>> loadWiFiList()
 {
   wifiPrefs.begin("wifi", true);
@@ -65,10 +63,9 @@ inline std::vector<std::pair<String,String>> loadWiFiList()
   return list;
 }
 
-
-/* =============================
- *  NVS 儲存
- * ============================= */
+// =====================================================
+// NVS save
+// =====================================================
 inline void saveWiFiList(const std::vector<std::pair<String,String>>& list)
 {
   DynamicJsonDocument doc(2048);
@@ -88,10 +85,9 @@ inline void saveWiFiList(const std::vector<std::pair<String,String>>& list)
   wifiPrefs.end();
 }
 
-
-/* =============================
- *  新增 / 更新
- * ============================= */
+// =====================================================
+// add / update
+// =====================================================
 inline void addOrUpdateWifi(const String& ssid, const String& pass)
 {
   auto list = loadWiFiList();
@@ -111,10 +107,9 @@ inline void addOrUpdateWifi(const String& ssid, const String& pass)
   saveWiFiList(list);
 }
 
-
-/* =============================
- *  刪除
- * ============================= */
+// =====================================================
+// delete
+// =====================================================
 inline void deleteWifi(const String& ssid)
 {
   auto list = loadWiFiList();
@@ -131,78 +126,38 @@ inline void deleteWifi(const String& ssid)
   saveWiFiList(list);
 }
 
-
-/* =============================
- *  JSON：Wi-Fi 狀態
- * ============================= */
-inline void buildWifiStatusJson(JsonDocument &doc)
-{
-  doc["type"] = "wifi_status";
-
-  // AP 永遠存在
-  doc["ap_ssid"] = AP_SSID;
-  doc["ap_ip"]   = WiFi.softAPIP().toString();
-
-  bool connected = (WiFi.status() == WL_CONNECTED);
-  doc["sta_connected"] = connected;
-
-  if (connected) {
-    doc["sta_ssid"] = WiFi.SSID();
-    doc["sta_ip"]   = WiFi.localIP().toString();
-    doc["rssi"]     = WiFi.RSSI();
-  } else {
-    doc["sta_ssid"] = "";
-    doc["sta_ip"]   = "";
-    doc["rssi"]     = 0;
-  }
-}
-
-
-/* =============================
- *  JSON：Wi-Fi Scan
- *  ✔ 不改任何狀態
- * ============================= */
-inline void buildWifiScanJson(JsonDocument &doc)
-{
-  doc["type"] = "wifi_scan";
-
-  int n = WiFi.scanNetworks();
-  JsonArray arr = doc.createNestedArray("list");
-
-  for (int i = 0; i < n; i++) {
-    JsonObject o = arr.createNestedObject();
-    o["ssid"] = WiFi.SSID(i);
-    o["rssi"] = WiFi.RSSI(i);
-  }
-}
-
-
-/* =============================
- *  Wi-Fi 啟動（只呼叫一次）
- * ============================= */
+// =====================================================
+// Wi-Fi 啟動（只呼叫一次）
+// 行為 = 你之前那份
+// =====================================================
 inline void startWifiApSta()
 {
-  // ⭐ 只在這裡設定 mode，一次而已
+  Serial.println("\n=== WiFi START (AP+STA) ===");
+
   WiFi.mode(WIFI_AP_STA);
   WiFi.setSleep(false);
   esp_wifi_set_ps(WIFI_PS_NONE);
 
-  // AP 永遠開
+  WiFi.setAutoReconnect(false);   // ⭐非常重要
   WiFi.softAP(AP_SSID, AP_PASS);
-
   WiFi.setHostname(HOSTNAME);
 
-  // mDNS 只啟一次
+  Serial.printf("[AP] %s  IP=%s\n",
+                AP_SSID,
+                WiFi.softAPIP().toString().c_str());
+
   if (!mdnsStarted && MDNS.begin(HOSTNAME)) {
-    MDNS.addService("_ws", "_tcp", 80);
+    MDNS.addService("http", "tcp", 80);
     mdnsStarted = true;
   }
 
-  // 嘗試已儲存 STA（不論成功或失敗）
+  // ⭐只嘗試一次已儲存 WiFi
   auto list = loadWiFiList();
   for (auto &w : list) {
-    if (wifiConnectNow(w.first, w.second)) {
+    if (wifiConnectOnce(w.first, w.second)) {
       break;
     }
   }
+
+  Serial.println("=== WiFi READY ===\n");
 }

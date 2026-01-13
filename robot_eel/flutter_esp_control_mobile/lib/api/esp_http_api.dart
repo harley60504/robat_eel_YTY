@@ -53,22 +53,38 @@ class EspHttpApi {
 
     return List<Map<String, dynamic>>.from(list);
   }
+
   /* ============================
   * 連線 Wi-Fi 並儲存
   * GET /wifi_connect?ssid=xxx&pass=yyy
   * ============================ */
   static Future<bool> wifiConnect(String ssid, String pass) async {
-    final uri = Uri.parse('$baseUrl/wifi_connect').replace(
-      queryParameters: {
-        'ssid': ssid,
-        'pass': pass,
-      },
-    );
+    final uri = Uri.parse(
+      '$baseUrl/wifi_connect',
+    ).replace(queryParameters: {'ssid': ssid, 'pass': pass});
 
     final res = await http.get(uri);
 
     if (res.statusCode != 200) {
       throw Exception('wifi_connect failed');
+    }
+
+    return res.body.trim() == 'OK';
+  }
+
+  /* ============================
+   * 刪除已儲存 Wi-Fi
+   * GET /wifi_delete?ssid=xxx
+   * ============================ */
+  static Future<bool> wifiDelete(String ssid) async {
+    final uri = Uri.parse(
+      '$baseUrl/wifi_delete',
+    ).replace(queryParameters: {'ssid': ssid});
+
+    final res = await http.get(uri);
+
+    if (res.statusCode != 200) {
+      throw Exception('wifi_delete failed');
     }
 
     return res.body.trim() == 'OK';

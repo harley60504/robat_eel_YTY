@@ -16,28 +16,35 @@ class CameraPage extends StatelessWidget {
         constraints: const BoxConstraints(maxWidth: 1100),
         child: Padding(
           padding: const EdgeInsets.all(16),
-
           child: isMobile
-              ? Column(
-                  children: const [
+              ? ListView(
+                  children: [
                     AspectRatio(
                       aspectRatio: 4 / 3,
                       child: CameraStreamWS(wsUrl: ApiConfig.wsStreamUrl),
                     ),
-                    SizedBox(height: 16),
-                    CameraControlPanel(),
+                    const SizedBox(height: 16),
+                    const CameraControlPanel(),
                   ],
                 )
               : Row(
-                  children: const [
+                  children: [
                     Expanded(
                       child: AspectRatio(
                         aspectRatio: 4 / 3,
                         child: CameraStreamWS(wsUrl: ApiConfig.wsStreamUrl),
                       ),
                     ),
-                    SizedBox(width: 24),
-                    SizedBox(width: 260, child: CameraControlPanel()),
+                    const SizedBox(width: 24),
+
+                    // ✅ 改成彈性寬度，不要死固定 260（窄橫向容易爆）
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(
+                        minWidth: 220,
+                        maxWidth: 320,
+                      ),
+                      child: const CameraControlPanel(),
+                    ),
                   ],
                 ),
         ),

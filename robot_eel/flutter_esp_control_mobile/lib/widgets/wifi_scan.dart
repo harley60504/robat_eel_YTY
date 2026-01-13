@@ -43,9 +43,7 @@ class _WiFiScanCardState extends State<WiFiScanCard> {
             content: TextField(
               controller: controller,
               obscureText: true,
-              decoration: const InputDecoration(
-                labelText: "Wi-Fi 密碼",
-              ),
+              decoration: const InputDecoration(labelText: "Wi-Fi 密碼"),
             ),
             actions: [
               TextButton(
@@ -70,9 +68,7 @@ class _WiFiScanCardState extends State<WiFiScanCard> {
 
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text(ok
-                                  ? "已連線並儲存 $ssid"
-                                  : "連線失敗"),
+                              content: Text(ok ? "已連線並儲存 $ssid" : "連線失敗"),
                             ),
                           );
                         } catch (e) {
@@ -90,38 +86,50 @@ class _WiFiScanCardState extends State<WiFiScanCard> {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text("附近 Wi-Fi", style: TextStyle(fontSize: 20)),
-
-            const SizedBox(height: 8),
-
-            ElevatedButton(
-              onPressed: scanning ? null : scan,
-              child: Text(scanning ? "掃描中…" : "掃描"),
-            ),
-
-            const SizedBox(height: 8),
-
-            if (error.isNotEmpty)
-              Text("錯誤：$error",
-                  style: const TextStyle(color: Colors.red))
-            else if (aps.isEmpty)
-              const Text("尚未掃描")
-            else
-              ...aps.map(
-                (ap) => ListTile(
-                  title: Text(ap['ssid'] ?? ''),
-                  subtitle: Text("RSSI: ${ap['rssi']}"),
-                  trailing: wifiBars(ap['rssi']),
-                  onTap: () => connectDialog(ap['ssid']),
-                ),
+    return SizedBox(
+      width: double.infinity,
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text("附近 Wi-Fi", style: TextStyle(fontSize: 20)),
+              const SizedBox(height: 8),
+              ElevatedButton(
+                onPressed: scanning ? null : scan,
+                child: Text(scanning ? "掃描中…" : "掃描"),
               ),
-          ],
+              const SizedBox(height: 8),
+              if (error.isNotEmpty)
+                Text("錯誤：$error", style: const TextStyle(color: Colors.red))
+              else if (aps.isEmpty)
+                const Text("尚未掃描")
+              else
+                ...aps.map((ap) {
+                  final apSsid = (ap['ssid'] ?? '').toString();
+                  final apRssi = (ap['rssi'] ?? 0) as int;
+
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      apSsid,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    subtitle: Text("RSSI: $apRssi"),
+                    trailing: SizedBox(
+                      width: 80, // ✅ 固定右側寬度，視覺會更整齊
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: wifiBars(apRssi),
+                      ),
+                    ),
+                    onTap: () => connectDialog(apSsid),
+                  );
+                }),
+            ],
+          ),
         ),
       ),
     );

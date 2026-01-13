@@ -46,34 +46,31 @@ class _WiFiCurrentCardState extends State<WiFiCurrentCard> {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text("目前 Wi-Fi", style: TextStyle(fontSize: 20)),
-
-            const SizedBox(height: 8),
-
-            if (loading)
-              const Text("讀取中…")
-            else if (error.isNotEmpty)
-              Text("錯誤：$error", style: const TextStyle(color: Colors.red))
-            else if (!connected)
-              const Text("未連線", style: TextStyle(color: Colors.red))
-            else ...[
-              Text("SSID：$ssid"),
-              Text("IP：$ip"),
-              Text("RSSI：$rssi dBm"),
+    return SizedBox(
+      width: double.infinity,
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text("目前 Wi-Fi", style: TextStyle(fontSize: 20)),
+              const SizedBox(height: 8),
+              if (loading)
+                const Text("讀取中…")
+              else if (error.isNotEmpty)
+                Text("錯誤：$error", style: const TextStyle(color: Colors.red))
+              else if (!connected)
+                const Text("未連線", style: TextStyle(color: Colors.red))
+              else ...[
+                Text("SSID：$ssid"),
+                Text("IP：$ip"),
+                Text("RSSI：$rssi dBm"),
+              ],
+              const SizedBox(height: 8),
+              ElevatedButton(onPressed: refresh, child: const Text("重新讀取")),
             ],
-
-            const SizedBox(height: 8),
-            ElevatedButton(
-              onPressed: refresh,
-              child: const Text("重新讀取"),
-            ),
-          ],
+          ),
         ),
       ),
     );

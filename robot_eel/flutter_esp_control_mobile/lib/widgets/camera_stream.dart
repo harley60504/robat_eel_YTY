@@ -1,7 +1,13 @@
-import 'dart:typed_data';
-import 'dart:io';
 import 'dart:async';
+import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+
+/// ✅ Mobile (Android/iOS) 用 dart:io WebSocket
+/// ✅ Web 用 web_socket_channel
+import 'dart:io' as io;
+import 'package:web_socket_channel/web_socket_channel.dart';
 
 class CameraStreamWS extends StatefulWidget {
   final String wsUrl;
@@ -12,8 +18,13 @@ class CameraStreamWS extends StatefulWidget {
 }
 
 class _CameraStreamWSState extends State<CameraStreamWS> {
-  WebSocket? socket;
-  StreamSubscription? _sub;
+  // Mobile 用
+  io.WebSocket? _socket;
+  StreamSubscription? _socketSub;
+
+  // Web 用
+  WebSocketChannel? _channel;
+  StreamSubscription? _channelSub;
 
   Uint8List? frame;
 
@@ -27,11 +38,19 @@ class _CameraStreamWSState extends State<CameraStreamWS> {
     _connect();
   }
 
-  void _connect() async {
-    try {
-      socket = await WebSocket.connect(widget.wsUrl);
+  Future<void> _connect() async {
+    if (kIsWeb) {
+      _connectWeb();
+    } else {
+      await _connectMobile();
+    }
+  }
 
-      _sub = socket!.listen(
+  Future<void> _connectMobile() async {
+    try {
+      _socket = await io.WebSocket.connect(widget.wsUrl);
+
+      _socketSub = _socket!.listen(
         (data) {
           if (!mounted) return;
 
@@ -49,6 +68,30 @@ class _CameraStreamWSState extends State<CameraStreamWS> {
     }
   }
 
+  void _connectWeb() {
+    try {
+      _channel = WebSocketChannel.connect(Uri.parse(widget.wsUrl));
+
+      _channelSub = _channel!.stream.listen(
+        (data) {
+          if (!mounted) return;
+
+          // WebSocketChannel Web 可能給 Uint8List 或 List<int>
+          final bytes = (data is Uint8List)
+              ? data
+              : Uint8List.fromList(data as List<int>);
+
+          setState(() => frame = bytes);
+          _calcFPS();
+        },
+        onDone: () => debugPrint("Camera WS closed (web)"),
+        onError: (e) => debugPrint("Camera WS error (web): $e"),
+      );
+    } catch (e) {
+      debugPrint("Camera WS connect failed (web): $e");
+    }
+  }
+
   void _calcFPS() {
     frameCount++;
     final now = DateTime.now();
@@ -63,9 +106,15 @@ class _CameraStreamWSState extends State<CameraStreamWS> {
 
   @override
   void dispose() {
-    _sub?.cancel();
-    socket?.close();
-    socket = null;
+    _socketSub?.cancel();
+    _channelSub?.cancel();
+
+    _socket?.close();
+    _channel?.sink.close();
+
+    _socket = null;
+    _channel = null;
+
     super.dispose();
   }
 
@@ -76,7 +125,6 @@ class _CameraStreamWSState extends State<CameraStreamWS> {
         frame == null
             ? const Center(child: Text("Waiting for camera…"))
             : Image.memory(frame!, gaplessPlayback: true, fit: BoxFit.cover),
-
         Positioned(
           top: 6,
           left: 6,

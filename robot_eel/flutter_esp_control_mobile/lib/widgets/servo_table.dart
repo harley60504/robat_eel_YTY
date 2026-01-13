@@ -47,9 +47,9 @@ class _ServoTableState extends State<ServoTable> {
     sub = WsControlApi.stream().listen((msg) {
       if (!mounted) return;
 
-      // msg 可能是 json string，也可能已經是 map，這裡做保護
       dynamic data = msg;
 
+      // msg 可能是 json string，也可能已經是 map，這裡做保護
       if (msg is String) {
         try {
           data = jsonDecode(msg);
@@ -176,15 +176,17 @@ class _ServoTableState extends State<ServoTable> {
 
             const SizedBox(height: 12),
 
-            Row(
+            // ✅ 這裡改成 Wrap，避免手機螢幕太窄時爆版
+            Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 ElevatedButton(
                   onPressed: kIsWeb ? null : exportExcel,
                   child: Text(kIsWeb ? "Web 不支援匯出" : "匯出並分享"),
                 ),
-                const SizedBox(width: 12),
                 Text("已記錄 $logCount 筆"),
-                const SizedBox(width: 12),
                 Text("最新 Seq = ${lastSeq ?? '-'}"),
               ],
             ),

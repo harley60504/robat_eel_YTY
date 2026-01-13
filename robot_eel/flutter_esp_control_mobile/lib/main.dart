@@ -1,14 +1,24 @@
 import 'package:flutter/material.dart';
+
 import 'pages/dashboard_page.dart';
 import 'pages/camera_page.dart';
 import 'pages/wifi_page.dart';
-import 'api/esp_api.dart';
 
-void main() {
+import 'api/esp_api.dart';
+import 'config.dart';
+import 'net/host_resolver.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  final host = await HostResolver.autoSelectHost();
+  await ApiConfig.setHost(host);
+
   runApp(const ESP32ControlApp());
-  // 🔒 AP 模式下，等網路穩定再連 WS
+
+  // ✅ 確保 WS 啟動
   Future.delayed(const Duration(seconds: 1), () {
-    WsControlApi.stream();
+    WsControlApi.ensureConnect();
   });
 }
 
@@ -17,9 +27,9 @@ class ESP32ControlApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return const MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: const MainLayout(),
+      home: MainLayout(),
     );
   }
 }
@@ -33,22 +43,20 @@ class MainLayout extends StatefulWidget {
 class _MainLayoutState extends State<MainLayout> {
   int _selectedIndex = 0;
 
-  final _pages = const [DashboardPage(), CameraPage(), WiFiPage()];
+  final List<Widget> _pages = const [DashboardPage(), CameraPage(), WiFiPage()];
 
   @override
   Widget build(BuildContext context) {
     final isMobile = MediaQuery.of(context).size.width < 740;
 
     return Scaffold(
-      appBar: AppBar(title: const Text("ESP32 控制面板")),
-
+      appBar: AppBar(title: Text("ESP32 控制面板 - ${ApiConfig.host}")),
       body: Row(
         children: [
           if (!isMobile) buildSidebar(),
           Expanded(child: _pages[_selectedIndex]),
         ],
       ),
-
       bottomNavigationBar: isMobile ? buildBottomBar() : null,
     );
   }

@@ -17,16 +17,17 @@ class DashboardPage extends StatelessWidget {
         constraints: const BoxConstraints(maxWidth: 1200),
         child: Padding(
           padding: const EdgeInsets.all(12),
-
           child: isMobile
               ? ListView(
-                  children: const [
-                    ModeSwitch(),
-                    SizedBox(height: 12),
-                    MotionParam(),
-                    SizedBox(height: 12),
-                    SystemStatus(),
-                    SizedBox(height: 12),
+                  children: [
+                    const ModeSwitch(),
+                    const SizedBox(height: 12),
+                    const MotionParam(),
+                    const SizedBox(height: 12),
+                    const SystemStatus(),
+                    const SizedBox(height: 12),
+
+                    // ✅ ServoTable 是 StatefulWidget，不適合 const
                     ServoTable(),
                   ],
                 )
@@ -35,10 +36,12 @@ class DashboardPage extends StatelessWidget {
                   mainAxisSpacing: 12,
                   crossAxisSpacing: 12,
                   childAspectRatio: 1.25,
-                  children: const [
-                    ModeSwitch(),
-                    MotionParam(),
-                    SystemStatus(),
+                  children: [
+                    const ModeSwitch(),
+                    const MotionParam(),
+                    const SystemStatus(),
+
+                    // ✅ ServoTable 是 StatefulWidget，不適合 const
                     ServoTable(),
                   ],
                 ),

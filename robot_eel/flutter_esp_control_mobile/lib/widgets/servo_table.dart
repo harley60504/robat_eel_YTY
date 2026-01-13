@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:excel/excel.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../api/esp_api.dart';
 
@@ -42,21 +45,33 @@ class _ServoTableState extends State<ServoTable> {
     ]);
 
     sub = WsControlApi.stream().listen((msg) {
-      if (msg is! Map) return;
       if (!mounted) return;
-      if (msg["type"] != "servo_status") return;
 
-      final int seq = msg["seq"] ?? -1;
+      // msg 可能是 json string，也可能已經是 map，這裡做保護
+      dynamic data = msg;
+
+      if (msg is String) {
+        try {
+          data = jsonDecode(msg);
+        } catch (_) {
+          return;
+        }
+      }
+
+      if (data is! Map) return;
+      if (data["type"] != "servo_status") return;
+
+      final int seq = data["seq"] ?? -1;
       if (lastSeq == seq) return; // 避免重複
       lastSeq = seq;
 
-      final t = (msg["target"] as List)
+      final t = (data["target"] as List)
           .map((e) => (e as num).toDouble())
           .toList();
-      final a = (msg["actual"] as List)
+      final a = (data["actual"] as List)
           .map((e) => (e as num).toDouble())
           .toList();
-      final e = (msg["error"] as List)
+      final e = (data["error"] as List)
           .map((e) => (e as num).toDouble())
           .toList();
 
@@ -88,20 +103,39 @@ class _ServoTableState extends State<ServoTable> {
     super.dispose();
   }
 
-  /// ✅ Android / iOS 匯出：存成檔案
+  /// ✅ 匯出 Excel → 直接分享 → 分享後刪除，不佔空間
+  /// ✅ Web 會直接禁用，不執行
   Future<void> exportExcel() async {
+    if (kIsWeb) return; // Web 不支援 dart:io / temp directory
+
     final bytes = excel.encode();
     if (bytes == null) return;
 
-    final dir = await getApplicationDocumentsDirectory();
-    final file = File('${dir.path}/servo_log.xlsx');
+    // ✅ 存到暫存資料夾（temp），避免占空間
+    final dir = await getTemporaryDirectory();
+
+    // ✅ 每次不同檔名，避免覆蓋/快取問題
+    final filename = "servo_log_${DateTime.now().millisecondsSinceEpoch}.xlsx";
+    final file = File('${dir.path}/$filename');
+
     await file.writeAsBytes(bytes, flush: true);
+
+    if (!mounted) return;
+
+    try {
+      await Share.shareXFiles([XFile(file.path)], text: "Servo log 匯出");
+    } finally {
+      // ✅ 分享完刪除，避免佔空間
+      if (await file.exists()) {
+        await file.delete();
+      }
+    }
 
     if (!mounted) return;
 
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(SnackBar(content: Text('已匯出至：${file.path}')));
+    ).showSnackBar(const SnackBar(content: Text("已分享 Excel（不保留檔案）")));
   }
 
   @override
@@ -145,8 +179,8 @@ class _ServoTableState extends State<ServoTable> {
             Row(
               children: [
                 ElevatedButton(
-                  onPressed: exportExcel,
-                  child: const Text("匯出 Excel"),
+                  onPressed: kIsWeb ? null : exportExcel,
+                  child: Text(kIsWeb ? "Web 不支援匯出" : "匯出並分享"),
                 ),
                 const SizedBox(width: 12),
                 Text("已記錄 $logCount 筆"),

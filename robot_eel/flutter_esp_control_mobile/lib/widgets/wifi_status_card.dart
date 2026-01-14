@@ -93,7 +93,7 @@ class _WiFiStatusCardState extends State<WiFiStatusCard> {
 
               // ✅ 手機 SSID 顯示（直接顯示 bootSsid → refresh 後更新）
               Text(
-                "手機目前 Wi-Fi：$phoneSsid",
+                "目前 Wi-Fi：$phoneSsid",
                 style: TextStyle(
                   color: phoneSsidOk ? Colors.black : Colors.orange,
                 ),

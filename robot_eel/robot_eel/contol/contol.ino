@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include "driver/uart.h"
+#include "freertos/semphr.h"
 
 #include "config.h"
 #include "utils.h"
@@ -8,7 +9,7 @@
 #include "servo.h"
 #include "ServoStatusUART.h"
 #include "ControltoCamera.h"
-
+#include "AnglePacket.h"
 
 // ==========================
 //  UART Pins
@@ -17,12 +18,14 @@
 #define CAMERA_TX_PIN   9
 
 
+// ServoStatusPacket
+ServoStatusPacket g_status;
+SemaphoreHandle_t statusMutex = NULL;
 // ==========================
 //  Servo defaults
 // ==========================
 float servoDefaultAngles[bodyNum] = {120,120,120,120,120,120};
 float angleDeg[bodyNum];
-
 
 // ==========================
 //  Control Parameters
@@ -37,20 +40,31 @@ int   controlMode  = 0;
 bool  useFeedback  = false;
 float feedbackGain = 1.0f;
 
-
 // ==========================
 HopfOscillator cpg[bodyNum];
 unsigned long g_lastLogTime = 0;
 
+// ==========================
+// RX state (ControlPacket)
+// ==========================
+static ControlRxState camCtrlRx;
 
 // ==========================
-// RX state
+// RX state (AnglePacket)
 // ==========================
-static ControlRxState camRx;
-
+static AngleRxState camAngleRx;
 
 // ==========================
-// UART TX Task  (→ Camera)
+// UART Angle cache (shared with servoTask)
+// ==========================
+volatile bool g_haveAngleCmd = false;
+float g_uartTargetDeg[bodyNum] = {0};
+volatile uint32_t g_lastAngleSeq = 0;
+
+SemaphoreHandle_t angleMutex = NULL;
+
+// ==========================
+// UART TX Task  (→ Camera): send control params
 // ==========================
 void cameraTxTask(void* pv)
 {
@@ -65,7 +79,7 @@ void cameraTxTask(void* pv)
       lambda,
       L,
       isPaused,
-      controlMode,
+      (uint8_t)controlMode,
       useFeedback,
       feedbackGain
     );
@@ -74,9 +88,8 @@ void cameraTxTask(void* pv)
   }
 }
 
-
 // ==========================
-// UART RX Task  (← Camera)
+// UART RX Task (← Camera): demux by header 0xAA / 0xAB
 // ==========================
 void cameraRxTask(void* pv)
 {
@@ -88,31 +101,102 @@ void cameraRxTask(void* pv)
     {
       uint8_t b = Serial2.read();
 
-      if(feedControlRx(camRx, b))
+      // =====================================================
+      // 優先處理：如果 Angle parser 正在接收，就只餵 Angle
+      // =====================================================
+      if (camAngleRx.receiving)
       {
-        ControlPacket &pkt = camRx.pkt;
+        if (feedAngleRx(camAngleRx, b))
+        {
+          AnglePacket &pkt = camAngleRx.pkt;
 
-        Ajoint       = pkt.Ajoint;
-        frequency    = pkt.frequency;
-        lambda       = pkt.lambda;
-        L            = pkt.L;
-        isPaused     = pkt.isPaused;
-        controlMode  = pkt.controlMode;
-        useFeedback  = pkt.useFeedback;
-        feedbackGain = pkt.feedbackGain;
+          if (pkt.count == bodyNum)
+          {
+            if (pkt.seq != g_lastAngleSeq)
+            {
+              if (angleMutex &&
+                  xSemaphoreTake(angleMutex, portMAX_DELAY) == pdTRUE)
+              {
+                for (int i = 0; i < bodyNum; i++)
+                {
+                  g_uartTargetDeg[i] = pkt.targetDeg[i];
+                }
 
-        Serial.println("==== UART ← Camera ====");
-        Serial.printf("A=%.2f  f=%.2f  λ=%.2f  L=%.2f\n",
-          Ajoint, frequency, lambda, L
-        );
+                g_lastAngleSeq = pkt.seq;
+                g_haveAngleCmd = true;
+
+                xSemaphoreGive(angleMutex);
+              }
+            }
+          }
+
+          // Debug（可關）
+          Serial.printf("[UART] AnglePacket OK seq=%lu count=%u\n",
+                        (unsigned long)pkt.seq, (unsigned)pkt.count);
+        }
+
+        // ✅ 已在 Angle 狀態下，這個 byte 不要再給其他 parser
+        continue;
       }
+
+      // =====================================================
+      // 優先處理：如果 Control parser 正在接收，就只餵 Control
+      // =====================================================
+      if (camCtrlRx.receiving)
+      {
+        if (feedControlRx(camCtrlRx, b))
+        {
+          ControlPacket &pkt = camCtrlRx.pkt;
+
+          Ajoint       = pkt.Ajoint;
+          frequency    = pkt.frequency;
+          lambda       = pkt.lambda;
+          L            = pkt.L;
+          isPaused     = pkt.isPaused;
+          controlMode  = pkt.controlMode;
+
+          // ✅ 如果切到非 Angle 模式，把角度命令標記清掉（避免殘留）
+          if (controlMode != 3) {
+            g_haveAngleCmd = false;
+          }
+
+          useFeedback  = pkt.useFeedback;
+          feedbackGain = pkt.feedbackGain;
+
+          Serial.println("==== UART ← Camera (ControlPacket) ====");
+          Serial.printf("mode=%d pause=%d A=%.2f f=%.2f lambda=%.2f L=%.2f fb=%d gain=%.2f\n",
+                        controlMode, (int)isPaused,
+                        Ajoint, frequency, lambda, L,
+                        (int)useFeedback, feedbackGain);
+        }
+
+        // ✅ 已在 Control 狀態下，這個 byte 不要再給其他 parser
+        continue;
+      }
+
+      // =====================================================
+      // Idle 狀態：只認 header，才開始接收
+      // =====================================================
+      if (b == CONTROL_PACKET_HEADER)
+      {
+        // 啟動 Control parser（把 header 也放進去）
+        feedControlRx(camCtrlRx, b);
+        continue;
+      }
+
+      if (b == ANGLE_PACKET_HEADER)
+      {
+        // 啟動 Angle parser（把 header 也放進去）
+        feedAngleRx(camAngleRx, b);
+        continue;
+      }
+
+      // 其他 byte：丟棄
     }
 
-    vTaskDelay(1);
+    vTaskDelay(pdMS_TO_TICKS(1));
   }
 }
-
-
 
 // ==========================
 // SETUP
@@ -121,24 +205,25 @@ void setup()
 {
   Serial.begin(115200);
   delay(300);
+  statusMutex = xSemaphoreCreateMutex();
+  // ✅ 建立 angleMutex（很重要）
+  angleMutex = xSemaphoreCreateMutex();
 
-  // Servo UART
+  if (!statusMutex || !angleMutex) {
+    Serial.println("ERROR: Mutex create failed!");
+    while (1) delay(1000);
+  }
+  // Servo UART (RS485)
   Serial1.begin(115200, SERIAL_8N1, SERVO_RX_PIN, SERVO_TX_PIN);
   uart_set_mode(UART_NUM_1, UART_MODE_RS485_HALF_DUPLEX);
 
   // Camera UART
-  Serial2.begin(
-    115200,
-    SERIAL_8N1,
-    CAMERA_RX_PIN,
-    CAMERA_TX_PIN
-  );
+  Serial2.begin(115200, SERIAL_8N1, CAMERA_RX_PIN, CAMERA_TX_PIN);
 
   Serial.println("Control Board Ready");
 
   initCPG();
   initLogFile();
-
 
   // Servo Task
   xTaskCreatePinnedToCore(
@@ -148,9 +233,8 @@ void setup()
     nullptr,
     2,
     nullptr,
-    1        // Core 1
+    1
   );
-
 
   // UART TX Task
   xTaskCreatePinnedToCore(
@@ -160,20 +244,21 @@ void setup()
     nullptr,
     1,
     nullptr,
-    0        // Core 0
+    0
   );
 
-  // UART RX Task
+  // UART RX Task (demux Control + Angle)
   xTaskCreatePinnedToCore(
     cameraRxTask,
     "cameraRxTask",
     4096,
     nullptr,
-    1,
+    2,       // 建議比 TX 高一點點，避免 RX 積壓
     nullptr,
     0
   );
 
+  // Servo status TX Task (回傳 target/actual/error)
   xTaskCreatePinnedToCore(
     servoStatusTxTask,
     "servoStatusTxTask",
@@ -184,8 +269,6 @@ void setup()
     0
   );
 }
-
-
 
 // ==========================
 // MAIN LOOP

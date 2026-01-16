@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../widgets/camera_stream.dart';
 import '../widgets/camera_control.dart';
 import '../config.dart';
+import '../ui/ui_layout.dart';
 
 class CameraPage extends StatelessWidget {
   const CameraPage({super.key});
@@ -9,13 +10,13 @@ class CameraPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
-    final isMobile = width < 700;
+    final isMobile = width < UiLayout.mobileBreakpoint;
 
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 1100),
+        constraints: const BoxConstraints(maxWidth: UiLayout.pageMaxWidth),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: UiLayout.pagePadding,
           child: isMobile
               ? ListView(
                   children: [
@@ -23,11 +24,12 @@ class CameraPage extends StatelessWidget {
                       aspectRatio: 4 / 3,
                       child: CameraStreamWS(wsUrl: ApiConfig.wsStreamUrl),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: UiLayout.gap),
                     const CameraControlPanel(),
                   ],
                 )
               : Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
                       child: AspectRatio(
@@ -35,15 +37,13 @@ class CameraPage extends StatelessWidget {
                         child: CameraStreamWS(wsUrl: ApiConfig.wsStreamUrl),
                       ),
                     ),
-                    const SizedBox(width: 24),
-
-                    // ✅ 改成彈性寬度，不要死固定 260（窄橫向容易爆）
+                    const SizedBox(width: UiLayout.gap),
                     ConstrainedBox(
-                      constraints: const BoxConstraints(
-                        minWidth: 220,
-                        maxWidth: 320,
+                      constraints: UiLayout.sidePanelConstraints,
+                      child: const SizedBox(
+                        width: double.infinity, // ✅ 右側寬度統一
+                        child: CameraControlPanel(),
                       ),
-                      child: const CameraControlPanel(),
                     ),
                   ],
                 ),

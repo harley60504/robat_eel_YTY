@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../api/esp_api.dart';
+import '../ui/ui_card.dart';
 
 class ServoTable extends StatefulWidget {
   const ServoTable({super.key});
@@ -60,7 +61,7 @@ class _ServoTableState extends State<ServoTable> {
       if (data["type"] != "servo_status") return;
 
       final int seq = data["seq"] ?? -1;
-      if (lastSeq == seq) return; // 避免重複
+      if (lastSeq == seq) return;
       lastSeq = seq;
 
       final t =
@@ -98,9 +99,6 @@ class _ServoTableState extends State<ServoTable> {
     super.dispose();
   }
 
-  /// ✅ 匯出 Excel：讓使用者選擇儲存位置
-  /// ✅ Android/iOS：必須用 bytes 存檔（不需要額外權限）
-  /// ✅ Windows/macOS/Linux：可拿到 path（也可用 bytes）
   Future<void> exportExcel() async {
     if (kIsWeb) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -120,12 +118,9 @@ class _ServoTableState extends State<ServoTable> {
         fileName: filename,
         type: FileType.custom,
         allowedExtensions: ['xlsx'],
-
-        // ✅ Android/iOS 必填：直接交給系統檔案選擇器儲存
         bytes: Uint8List.fromList(bytes),
       );
 
-      // 使用者取消
       if (path == null) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -134,8 +129,6 @@ class _ServoTableState extends State<ServoTable> {
         return;
       }
 
-      // ✅ 桌機有些情況會回傳 path，但 bytes 已經存好了
-      // 這裡只做提示即可（不用再 File(path).writeAsBytes）
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("已匯出：$path")),
@@ -152,83 +145,71 @@ class _ServoTableState extends State<ServoTable> {
   Widget build(BuildContext context) {
     final n = target.length;
 
-    return Card(
-      elevation: 3,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text("Servo 狀態", style: TextStyle(fontSize: 20)),
-            const SizedBox(height: 12),
-
-            /// ✅ 修正手機 Right Overflow 的關鍵：
-            /// - 不要用 SizedBox(width: constraints.maxWidth)
-            /// - 改用 minWidth，讓表格至少等於卡片寬，但可水平滾動擴張
-            LayoutBuilder(
-              builder: (context, constraints) {
-                return ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 260),
-                  child: Scrollbar(
-                    thumbVisibility: true,
+    return UiCard(
+      title: "Servo 狀態",
+      minHeight: 360,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          LayoutBuilder(
+            builder: (context, constraints) {
+              return ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 260),
+                child: Scrollbar(
+                  thumbVisibility: true,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.vertical,
                     child: SingleChildScrollView(
-                      scrollDirection: Axis.vertical,
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            minWidth: constraints.maxWidth,
-                          ),
-                          child: DataTable(
-                            // ✅ 手機更不容易爆版
-                            columnSpacing: 16,
-                            horizontalMargin: 12,
-
-                            headingRowHeight: 44,
-                            dataRowMinHeight: 40,
-                            dataRowMaxHeight: 40,
-                            columns: const [
-                              DataColumn(label: Text("CH")),
-                              DataColumn(label: Text("Target (deg)")),
-                              DataColumn(label: Text("Actual (deg)")),
-                              DataColumn(label: Text("Error (deg)")),
-                            ],
-                            rows: List.generate(n, (i) {
-                              return DataRow(
-                                cells: [
-                                  DataCell(Text("CH${i + 1}")),
-                                  DataCell(Text(target[i].toStringAsFixed(2))),
-                                  DataCell(Text(actual[i].toStringAsFixed(2))),
-                                  DataCell(Text(error[i].toStringAsFixed(2))),
-                                ],
-                              );
-                            }),
-                          ),
+                      scrollDirection: Axis.horizontal,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minWidth: constraints.maxWidth,
+                        ),
+                        child: DataTable(
+                          columnSpacing: 16,
+                          horizontalMargin: 12,
+                          headingRowHeight: 44,
+                          dataRowMinHeight: 40,
+                          dataRowMaxHeight: 40,
+                          columns: const [
+                            DataColumn(label: Text("CH")),
+                            DataColumn(label: Text("Target (deg)")),
+                            DataColumn(label: Text("Actual (deg)")),
+                            DataColumn(label: Text("Error (deg)")),
+                          ],
+                          rows: List.generate(n, (i) {
+                            return DataRow(
+                              cells: [
+                                DataCell(Text("CH${i + 1}")),
+                                DataCell(Text(target[i].toStringAsFixed(2))),
+                                DataCell(Text(actual[i].toStringAsFixed(2))),
+                                DataCell(Text(error[i].toStringAsFixed(2))),
+                              ],
+                            );
+                          }),
                         ),
                       ),
                     ),
                   ),
-                );
-              },
-            ),
-
-            const SizedBox(height: 12),
-
-            Wrap(
-              spacing: 12,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                ElevatedButton(
-                  onPressed: exportExcel,
-                  child: const Text("匯出 Excel"),
                 ),
-                Text("已記錄 $logCount 筆"),
-                Text("最新 Seq = ${lastSeq ?? '-'}"),
-              ],
-            ),
-          ],
-        ),
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 12,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              ElevatedButton(
+                onPressed: exportExcel,
+                child: const Text("匯出 Excel"),
+              ),
+              Text("已記錄 $logCount 筆"),
+              Text("最新 Seq = ${lastSeq ?? '-'}"),
+            ],
+          ),
+        ],
       ),
     );
   }

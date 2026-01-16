@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'pages/dashboard_page.dart';
+import 'pages/servo_page.dart';
 import 'pages/camera_page.dart';
 import 'pages/wifi_page.dart';
 
@@ -12,10 +12,8 @@ import 'net/wifi_info.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // ✅ 1) 開 App 先讀一次 SSID 存快取（給 UI 直接顯示）
   await WifiInfo.initBootSsid();
 
-  // ✅ 2) 再做自動選 host
   final r = await HostResolver.autoSelectHostEx();
   await ApiConfig.setHost(r.host, reason: r.reason);
 
@@ -23,7 +21,6 @@ Future<void> main() async {
 
   runApp(const ESP32ControlApp());
 
-  // ✅ 3) WS 啟動
   Future.delayed(const Duration(seconds: 1), () {
     WsControlApi.ensureConnect();
   });
@@ -51,7 +48,7 @@ class _MainLayoutState extends State<MainLayout> {
   int _selectedIndex = 0;
 
   final List<Widget> _pages = const [
-    DashboardPage(),
+    ServoPage(), // ✅ 用合併頁取代 DashboardPage
     CameraPage(),
     WiFiPage(),
   ];
@@ -78,8 +75,12 @@ class _MainLayoutState extends State<MainLayout> {
         currentIndex: _selectedIndex,
         onTap: (i) => setState(() => _selectedIndex = i),
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: "Dashboard"),
-          BottomNavigationBarItem(icon: Icon(Icons.camera_alt), label: "Camera"),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.dashboard), label: "Dashboard"),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.camera_alt), label: "Camera"),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.settings_remote), label: "Servo"),
           BottomNavigationBarItem(icon: Icon(Icons.wifi), label: "WiFi"),
         ],
       );
@@ -91,12 +92,16 @@ class _MainLayoutState extends State<MainLayout> {
         destinations: const [
           NavigationRailDestination(
             icon: Icon(Icons.dashboard),
-            label: Text("Dashboard"),
+            label: Text("servo_control"),
           ),
           NavigationRailDestination(
             icon: Icon(Icons.camera_alt),
             label: Text("Camera"),
           ),
+          // NavigationRailDestination(
+          //   icon: Icon(Icons.settings_remote),
+          //   label: Text("Servo"),
+          // ),
           NavigationRailDestination(
             icon: Icon(Icons.wifi),
             label: Text("WiFi"),

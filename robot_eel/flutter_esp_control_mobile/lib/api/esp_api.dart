@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import '../config.dart';
 
@@ -13,28 +14,33 @@ class WsControlApi {
       StreamController<dynamic>.broadcast();
 
   static Timer? _retryTimer;
-  static int _retryMs = 500; // 0.5s 起跳
+  static int _retryMs = 500;
   static String? _connectedUrl;
 
-  /// ✅ 對外：拿 stream（永遠不會 null）
+  // ✅ 快取：最後一筆 ctrl_params（不用等廣播就能顯示）
+  static Map<String, dynamic>? lastCtrlParams;
+
+  // ✅ notifier：UI 直接監聽這個（更快、更乾淨）
+  static final ValueNotifier<Map<String, dynamic>?> ctrlParamsNotifier =
+      ValueNotifier<Map<String, dynamic>?>(null);
+
+  // ✅ 對外：拿 stream（servo_status / wifi_status 也會走這裡）
   static Stream<dynamic> stream() {
     ensureConnect();
     return _controller.stream;
   }
 
-  /// ✅ 確保連線存在
+  /// ✅ 確保 WS 連線存在
   static void ensureConnect() {
     final url = ApiConfig.wsControlUrl;
 
-    // 已連線且連線目標沒變 → 不動
     if (_ws != null && _connectedUrl == url) return;
 
-    // 否則重連到新 url
     disconnect();
     _connect(url);
   }
 
-  /// ✅ 強制斷線（host 改變時一定要呼叫）
+  /// ✅ 強制斷線
   static void disconnect() {
     if (enableWsDebug) {
       print("[WS] disconnect");
@@ -69,7 +75,15 @@ class WsControlApi {
           try {
             if (enableWsDebug) print("[WS RX] $msg");
             final decoded = jsonDecode(msg);
+
+            // 1) stream
             _controller.add(decoded);
+
+            // 2) ctrl_params cache + notifier
+            if (decoded is Map && decoded["type"] == "ctrl_params") {
+              lastCtrlParams = Map<String, dynamic>.from(decoded);
+              ctrlParamsNotifier.value = lastCtrlParams;
+            }
           } catch (e) {
             if (enableWsDebug) print("[WS] json decode error: $e");
           }
@@ -90,14 +104,10 @@ class WsControlApi {
     }
   }
 
-  /// ✅ WS 掛了就清掉狀態，並排程重連
   static void _handleDisconnectAndRetry() {
     disconnect();
-
-    // 避免重複排程
     _retryTimer?.cancel();
 
-    // ✅ Backoff：0.5s → 1s → 2s → 4s → 8s → max 10s
     final delay = Duration(milliseconds: _retryMs);
 
     if (enableWsDebug) {
@@ -108,12 +118,11 @@ class WsControlApi {
       _retryTimer = null;
       _retryMs = (_retryMs * 2).clamp(500, 10000);
 
-      // ✅ 只要有人再呼叫 stream/send，就會 ensureConnect
       ensureConnect();
     });
   }
 
-  /// ✅ 對外：送資料
+  /// ✅ 對外：送資料（send 只吃 Map）
   static void send(Map<String, dynamic> body) {
     ensureConnect();
     if (_ws == null) return;
@@ -129,12 +138,18 @@ class WsControlApi {
     }
   }
 
-  // ===== API =====
+  // ==============================
+  // API
+  // ==============================
+
   static void setParam(Map<String, dynamic> p) =>
       send({"cmd": "set_param", ...p});
 
   static void setCameraParam(Map<String, dynamic> p) =>
       send({"cmd": "camera_param", ...p});
+
+  static void setAngle(List<double> angles) =>
+      send({"cmd": "set_angle", "angles": angles});
 
   static void wifiStatus() => send({"cmd": "wifi_status"});
   static void wifiScan() => send({"cmd": "wifi_scan"});

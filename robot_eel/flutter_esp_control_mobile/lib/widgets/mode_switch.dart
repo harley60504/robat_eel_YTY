@@ -1,6 +1,7 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import '../api/esp_api.dart';
+import '../ui/ui_card.dart';
+import '../ui/ui_layout.dart';
 
 class ModeSwitch extends StatefulWidget {
   const ModeSwitch({super.key});
@@ -11,28 +12,32 @@ class ModeSwitch extends StatefulWidget {
 
 class _ModeSwitchState extends State<ModeSwitch> {
   int mode = -1;
-  StreamSubscription? sub;
 
   @override
   void initState() {
     super.initState();
 
-    sub = WsControlApi.stream().listen((msg) {
-      if (msg is! Map) return;
-      if (!mounted) return;
-      if (!msg.containsKey("type")) return;
-      if (msg["type"] != "ctrl_params") return;
+    final cached = WsControlApi.lastCtrlParams;
+    if (cached != null) {
+      mode = cached["mode"] ?? -1;
+    }
 
-      final newMode = msg["mode"] ?? -1;
-      if (newMode != mode && mounted) {
-        setState(() => mode = newMode);
-      }
-    });
+    WsControlApi.ctrlParamsNotifier.addListener(_onCtrlParamsChanged);
+  }
+
+  void _onCtrlParamsChanged() {
+    final msg = WsControlApi.ctrlParamsNotifier.value;
+    if (!mounted || msg == null) return;
+
+    final newMode = msg["mode"] ?? -1;
+    if (newMode != mode) {
+      setState(() => mode = newMode);
+    }
   }
 
   @override
   void dispose() {
-    sub?.cancel();
+    WsControlApi.ctrlParamsNotifier.removeListener(_onCtrlParamsChanged);
     super.dispose();
   }
 
@@ -43,12 +48,16 @@ class _ModeSwitchState extends State<ModeSwitch> {
   Widget modeBtn(String name, int m) {
     final isSel = mode == m;
 
-    return ElevatedButton(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: isSel ? Colors.blue : null,
+    return SizedBox(
+      height: UiLayout.buttonHeight,
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: isSel ? Colors.blue : null,
+          padding: const EdgeInsets.symmetric(horizontal: 18),
+        ),
+        onPressed: () => setMode(m),
+        child: Text(name),
       ),
-      onPressed: () => setMode(m),
-      child: Text(name),
     );
   }
 
@@ -60,6 +69,8 @@ class _ModeSwitchState extends State<ModeSwitch> {
         return "CPG";
       case 2:
         return "Offset";
+      case 3:
+        return "UART";
       default:
         return "-";
     }
@@ -67,31 +78,25 @@ class _ModeSwitchState extends State<ModeSwitch> {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 3,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text("模式切換", style: TextStyle(fontSize: 20)),
-            const SizedBox(height: 10),
-
-            Wrap(
-              spacing: 10,
-              children: [
-                modeBtn("Sin", 0),
-                modeBtn("CPG", 1),
-                modeBtn("Offset", 2),
-              ],
-            ),
-
-            const SizedBox(height: 10),
-
-            Text("目前模式： ${modeName()}"),
-          ],
-        ),
+    return UiCard(
+      title: "模式切換",
+      minHeight: 160, // ✅ 比其他卡片稍高一點
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            children: [
+              modeBtn("Sin", 0),
+              modeBtn("CPG", 1),
+              modeBtn("Offset", 2),
+              modeBtn("UART", 3),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text("目前模式： ${modeName()}"),
+        ],
       ),
     );
   }

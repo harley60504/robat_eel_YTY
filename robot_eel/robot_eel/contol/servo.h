@@ -3,7 +3,15 @@
 #include "config.h"
 #include "utils.h"
 #include "logging.h"
-#include "ServoStatusUART.h"   // ★ 要包含，取得 g_status 與 mutex
+#include "ServoStatusUART.h"
+
+// ✅ 新增：UART Angle Packet
+#include "AnglePacket.h"
+#include "ControltoCamera.h"
+// ✅ UART 角度快取（由 RX Task 更新）
+extern volatile bool g_haveAngleCmd;
+extern float g_uartTargetDeg[bodyNum];
+extern SemaphoreHandle_t angleMutex;
 
 void servoTask(void *pv)
 {
@@ -21,35 +29,71 @@ void servoTask(void *pv)
       /* ========= 1. 計算 target 並輸出 MOVE ========= */
       for (int j = 0; j < bodyNum; j++)
       {
-        float outDeg = 0.0f;
+        float targetDeg = servoDefaultAngles[j]; // ✅ 預設保底
 
         switch (controlMode)
         {
           case 0:
-            outDeg =
+          {
+            float outDeg =
               Ajoint *
               sinf(j / fmaxf(lambda * L, 1e-6f)
                    + 2 * PI * frequency * t);
-            break;
+
+            targetDeg = servoDefaultAngles[j] + outDeg;
+          }
+          break;
 
           case 1:
           {
             float fb_phase = 0, fb_amp = 0;
             updateCPG(t, dt, j, fb_phase, fb_amp);
-            outDeg = getCPGOutput(j);
+
+            float outDeg = getCPGOutput(j);
+            targetDeg = servoDefaultAngles[j] + outDeg;
           }
-            break;
+          break;
 
           case 2:
-            outDeg = 0.0f;
-            break;
+          {
+            // 全部回到 default
+            targetDeg = servoDefaultAngles[j];
+          }
+          break;
+
+          case 3:
+          {
+            // ✅ UART Angle Mode：直接吃 UART 傳來的角度
+            if (g_haveAngleCmd)
+            {
+              // 用 mutex 保護 g_uartTargetDeg
+              if (xSemaphoreTake(angleMutex, 0) == pdTRUE)
+              {
+                targetDeg = g_uartTargetDeg[j];
+                xSemaphoreGive(angleMutex);
+              }
+            }
+            else
+            {
+              // 如果還沒收到 UART 指令 → 保持預設角度
+              targetDeg = servoDefaultAngles[j];
+            }
+          }
+          break;
+
+          default:
+          {
+            // 未知模式：回預設角度
+            targetDeg = servoDefaultAngles[j];
+          }
+          break;
         }
 
-        float targetDeg = servoDefaultAngles[j] + outDeg;
-
+        // ✅ 寫入 state
         servoState[j].targetDeg = targetDeg;
         angleDeg[j] = targetDeg;
 
+        // ✅ 下發 move
         int pos = degreeToLX224(targetDeg);
         moveLX224(j + 1, pos, MOVE_TIME_MS);
       }
@@ -80,6 +124,7 @@ void servoTask(void *pv)
         g_status.header = SERVO_STATUS_HEADER;
         g_status.count  = bodyNum;
         g_status.seq    = seq++;
+
         for(int i=0;i<bodyNum;i++)
         {
           g_status.targetDeg[i] = servoState[i].targetDeg;
@@ -89,7 +134,7 @@ void servoTask(void *pv)
 
         g_status.checksum = calcControlChecksum(
           (uint8_t*)&g_status,
-          sizeof(ServoStatusPacket)-1
+          sizeof(ServoStatusPacket) - 1
         );
 
         xSemaphoreGive(statusMutex);

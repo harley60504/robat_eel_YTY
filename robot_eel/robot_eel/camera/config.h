@@ -24,6 +24,6 @@
 #define HOME_WIFI_SSID  "YTY_2.4g"
 #define HOME_WIFI_PASS  "weareytylab"
 // Servos
-#define SERVO_COUNT 4
+#define bodyNum 6
 
 #endif

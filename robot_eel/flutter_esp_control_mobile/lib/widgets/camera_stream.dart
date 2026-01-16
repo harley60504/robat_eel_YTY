@@ -32,6 +32,8 @@ class _CameraStreamWSState extends State<CameraStreamWS> {
   double fps = 0;
   DateTime lastTime = DateTime.now();
 
+  bool connected = false;
+
   @override
   void initState() {
     super.initState();
@@ -50,6 +52,9 @@ class _CameraStreamWSState extends State<CameraStreamWS> {
     try {
       _socket = await io.WebSocket.connect(widget.wsUrl);
 
+      if (!mounted) return;
+      setState(() => connected = true);
+
       _socketSub = _socket!.listen(
         (data) {
           if (!mounted) return;
@@ -60,10 +65,20 @@ class _CameraStreamWSState extends State<CameraStreamWS> {
 
           _calcFPS();
         },
-        onDone: () => debugPrint("Camera WS closed"),
-        onError: (e) => debugPrint("Camera WS error: $e"),
+        onDone: () {
+          if (!mounted) return;
+          setState(() => connected = false);
+          debugPrint("Camera WS closed");
+        },
+        onError: (e) {
+          if (!mounted) return;
+          setState(() => connected = false);
+          debugPrint("Camera WS error: $e");
+        },
       );
     } catch (e) {
+      if (!mounted) return;
+      setState(() => connected = false);
       debugPrint("Camera WS connect failed: $e");
     }
   }
@@ -72,11 +87,13 @@ class _CameraStreamWSState extends State<CameraStreamWS> {
     try {
       _channel = WebSocketChannel.connect(Uri.parse(widget.wsUrl));
 
+      if (!mounted) return;
+      setState(() => connected = true);
+
       _channelSub = _channel!.stream.listen(
         (data) {
           if (!mounted) return;
 
-          // WebSocketChannel Web 可能給 Uint8List 或 List<int>
           final bytes = (data is Uint8List)
               ? data
               : Uint8List.fromList(data as List<int>);
@@ -84,10 +101,20 @@ class _CameraStreamWSState extends State<CameraStreamWS> {
           setState(() => frame = bytes);
           _calcFPS();
         },
-        onDone: () => debugPrint("Camera WS closed (web)"),
-        onError: (e) => debugPrint("Camera WS error (web): $e"),
+        onDone: () {
+          if (!mounted) return;
+          setState(() => connected = false);
+          debugPrint("Camera WS closed (web)");
+        },
+        onError: (e) {
+          if (!mounted) return;
+          setState(() => connected = false);
+          debugPrint("Camera WS error (web): $e");
+        },
       );
     } catch (e) {
+      if (!mounted) return;
+      setState(() => connected = false);
       debugPrint("Camera WS connect failed (web): $e");
     }
   }
@@ -98,7 +125,9 @@ class _CameraStreamWSState extends State<CameraStreamWS> {
     final diff = now.difference(lastTime).inMilliseconds;
 
     if (diff >= 1000) {
-      fps = frameCount * 1000 / diff;
+      setState(() {
+        fps = frameCount * 1000 / diff;
+      });
       frameCount = 0;
       lastTime = now;
     }
@@ -120,24 +149,55 @@ class _CameraStreamWSState extends State<CameraStreamWS> {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        frame == null
-            ? const Center(child: Text("Waiting for camera…"))
-            : Image.memory(frame!, gaplessPlayback: true, fit: BoxFit.cover),
-        Positioned(
-          top: 6,
-          left: 6,
-          child: Container(
-            padding: const EdgeInsets.all(4),
-            color: Colors.black54,
-            child: Text(
-              "FPS: ${fps.toStringAsFixed(1)}",
-              style: const TextStyle(color: Colors.white),
+    return Container(
+      color: Colors.black, // ✅ 背景黑色（像監控畫面）
+      child: Stack(
+        children: [
+          // ✅ 置中 + 不拉伸：BoxFit.contain
+          if (frame == null)
+            Center(
+              child: Text(
+                connected ? "Waiting for camera…" : "Camera not connected",
+                style: const TextStyle(color: Colors.white70, fontSize: 16),
+              ),
+            )
+          else
+            Center(
+              child: Image.memory(
+                frame!,
+                gaplessPlayback: true,
+                fit: BoxFit.contain, // ✅ 不裁切不拉伸
+                filterQuality: FilterQuality.none,
+              ),
+            ),
+
+          // ✅ 左上角資訊面板
+          Positioned(
+            top: 10,
+            left: 10,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.55),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                child: DefaultTextStyle(
+                  style: const TextStyle(color: Colors.white, fontSize: 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("FPS: ${fps.toStringAsFixed(1)}"),
+                      Text(connected ? "WS: Connected" : "WS: Disconnected"),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

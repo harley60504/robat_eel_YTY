@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/wifi_status_card.dart';
 import '../widgets/wifi_scan.dart';
+import '../ui/ui_layout.dart';
 
 class WiFiPage extends StatelessWidget {
   const WiFiPage({super.key});
@@ -8,18 +9,18 @@ class WiFiPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
-    final isMobile = width < 700;
+    final isMobile = width < UiLayout.mobileBreakpoint;
 
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 1200),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(12),
+        constraints: const BoxConstraints(maxWidth: UiLayout.pageMaxWidth),
+        child: Padding(
+          padding: UiLayout.pagePadding,
           child: isMobile
-              ? Column(
+              ? ListView(
                   children: const [
                     WiFiStatusCard(),
-                    SizedBox(height: 12),
+                    SizedBox(height: UiLayout.gap),
                     WiFiScanCard(),
                   ],
                 )
@@ -27,7 +28,7 @@ class WiFiPage extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: const [
                     Expanded(child: WiFiStatusCard()),
-                    SizedBox(width: 12),
+                    SizedBox(width: UiLayout.gap),
                     Expanded(child: WiFiScanCard()),
                   ],
                 ),

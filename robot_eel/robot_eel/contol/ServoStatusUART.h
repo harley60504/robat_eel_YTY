@@ -2,63 +2,58 @@
 #define SERVO_STATUS_UART_H
 
 #include <Arduino.h>
-#include "ControltoCamera.h"
 #include "config.h"
-#include "utils.h"     // ← 這裡已經有 ServoState + servoState[]
+#include "utils.h"
 
+// ✅ Servo Status Packet
 #define SERVO_STATUS_HEADER 0xBB
-#define SERVO_MAX 8
 
+// ✅ 用 bodyNum 當上限，永遠跟你的機器人段數一致
+#define SERVO_MAX bodyNum
 
-#pragma pack(push,1)
+#pragma pack(push, 1)
 typedef struct {
   uint8_t header;
   uint8_t count;
-  float   targetDeg[SERVO_MAX];
-  float   actualDeg[SERVO_MAX];
-  float   errorDeg[SERVO_MAX];
+  uint32_t seq;
+  float targetDeg[SERVO_MAX];
+  float actualDeg[SERVO_MAX];
+  float errorDeg[SERVO_MAX];
   uint8_t checksum;
 } ServoStatusPacket;
 #pragma pack(pop)
 
-
-// 直接用 utils.h 裡的
+// 你在其他地方定義的 servo state
 extern ServoState servoState[];
 extern float angleDeg[];
 
+// ✅ Snapshot buffer（只能在 .cpp 定義一次）
+extern ServoStatusPacket g_status;
+
+// ✅ Mutex（只能在 .cpp 定義一次）
+extern SemaphoreHandle_t statusMutex;
 
 static inline void sendServoStatusUART(HardwareSerial& serial)
 {
-  ServoStatusPacket pkt;
+  if (!statusMutex) return;
 
-  pkt.header = SERVO_STATUS_HEADER;
-  pkt.count  = bodyNum;
+  if (!xSemaphoreTake(statusMutex, 0))
+    return;
 
-  for(int i=0;i<bodyNum;i++)
-  {
-    pkt.targetDeg[i] = servoState[i].targetDeg;
-    pkt.actualDeg[i] = servoState[i].actualDeg;
-    pkt.errorDeg[i]  = servoState[i].errorDeg;
-  }
+  serial.write((uint8_t*)&g_status, sizeof(ServoStatusPacket));
 
-  pkt.checksum = calcControlChecksum(
-    (uint8_t*)&pkt,
-    sizeof(ServoStatusPacket)-1
-  );
-
-  serial.write((uint8_t*)&pkt, sizeof(ServoStatusPacket));
+  xSemaphoreGive(statusMutex);
 }
 
-
-// Task
-static void servoStatusTxTask(void *pv)
+// ✅ UART TX Task（建議固定用 Serial2，看你架構）
+static inline void servoStatusTxTask(void *pv)
 {
   TickType_t lastWake = xTaskGetTickCount();
 
   while(true)
   {
     sendServoStatusUART(Serial2);
-    vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(200));
+    vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(80));
   }
 }
 

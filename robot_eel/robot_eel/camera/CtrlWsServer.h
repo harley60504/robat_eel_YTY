@@ -1,16 +1,21 @@
 #pragma once
 #include <WebSocketsServer.h>
-#include "ControltoCamera.h"
-#include "CtrlUartBridge.h"
 
-namespace CtrlWsServer
-{
+#include "CtrlUartBridge.h"
+#include "ControltoCamera.h"
+#include "config.h"   // ✅ bodyNum
+
+namespace CtrlWsServer {
+
     void begin(WebSocketsServer &ws);
 
-    void broadcastCtrlParams(const ControlPacket &pkt);
+    void tick();
 
-    void broadcastServoStatus(uint8_t count,
-                              const float *target,
-                              const float *actual,
-                              const float *error);
+    void broadcastServoStatus(
+        uint8_t count,
+        uint32_t seq,
+        const float *target,
+        const float *actual,
+        const float *error
+    );
 }

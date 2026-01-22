@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../api/esp_api.dart';
 
@@ -12,6 +13,8 @@ class _CameraControlPanelState extends State<CameraControlPanel> {
   String resolution = "SVGA";
   double quality = 10;
 
+  Timer? debounce;
+
   final Map<String, int> frameSizeMap = {
     "UXGA": 11,
     "SXGA": 10,
@@ -24,28 +27,34 @@ class _CameraControlPanelState extends State<CameraControlPanel> {
     super.initState();
 
     WsControlApi.stream().listen((msg) {
-      if (msg["type"] == "camera_param") {
+      try {
+        /// --------- 安全檢查 ---------
+        if (msg is! Map) return;
+        if (!mounted) return;
+        if (!msg.containsKey("type")) return;
+        if (msg["type"] != "camera_param") return;
+
         setState(() {
+          /// framesize
           if (msg.containsKey("framesize")) {
             final rev = {for (final e in frameSizeMap.entries) e.value: e.key};
 
             resolution = rev[msg["framesize"]] ?? resolution;
           }
 
+          /// quality
           if (msg.containsKey("quality")) {
             quality = (msg["quality"] ?? quality).toDouble();
           }
         });
+      } catch (e) {
+        print("Camera WS error: $e");
       }
     });
   }
 
   void applyResolution(String value) {
     WsControlApi.setCameraParam({"framesize": frameSizeMap[value]!});
-  }
-
-  void applyQuality(double v) {
-    WsControlApi.setCameraParam({"quality": v.toInt()});
   }
 
   @override
@@ -73,13 +82,22 @@ class _CameraControlPanelState extends State<CameraControlPanel> {
             const SizedBox(height: 20),
 
             const Text("JPEG Quality"),
+
             Slider(
               value: quality,
               min: 5,
               max: 60,
               divisions: 55,
               label: quality.toInt().toString(),
-              onChanged: applyQuality,
+
+              onChanged: (v) => setState(() => quality = v),
+
+              onChangeEnd: (v) {
+                debounce?.cancel();
+                debounce = Timer(const Duration(milliseconds: 300), () {
+                  WsControlApi.setCameraParam({"quality": v.toInt()});
+                });
+              },
             ),
           ],
         ),

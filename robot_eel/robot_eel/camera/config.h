@@ -14,8 +14,16 @@
 #define CAMERA_JPEG_QUALITY  15
 #define CAMERA_FB_COUNT      1
 
+// AP 模式的 SSID / 密碼
+#define AP_SSID   "Robot"
+#define AP_PASS   "12345678"
 
+// mDNS 名稱 → http://robot.local
+#define HOSTNAME  "robot"
+
+#define HOME_WIFI_SSID  "YTY_2.4g"
+#define HOME_WIFI_PASS  "weareytylab"
 // Servos
-#define SERVO_COUNT 4
+#define bodyNum 6
 
 #endif

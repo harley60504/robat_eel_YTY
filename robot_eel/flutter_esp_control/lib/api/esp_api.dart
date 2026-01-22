@@ -15,35 +15,49 @@ class WsControlApi {
       print("[WS] connecting → ${ApiConfig.wsControlUrl}");
     }
 
-    _ws = WebSocketChannel.connect(Uri.parse(ApiConfig.wsControlUrl));
+    try {
+      _ws = WebSocketChannel.connect(Uri.parse(ApiConfig.wsControlUrl));
 
-    _broadcast = _ws!.stream.map((msg) {
-      if (enableWsDebug) print("[WS RX] $msg");
-      return jsonDecode(msg);
-    }).asBroadcastStream();
+      _broadcast = _ws!.stream.map((msg) {
+        if (enableWsDebug) print("[WS RX] $msg");
+        return jsonDecode(msg);
+      }).asBroadcastStream();
+    } catch (e) {
+      print("[WS] connect failed: $e");
+      _ws = null;
+    }
   }
 
   static Stream<dynamic> stream() {
     ensureConnect();
-    return _broadcast!;
+    return _broadcast ?? const Stream.empty();
   }
 
   static void send(Map<String, dynamic> body) {
     ensureConnect();
+    if (_ws == null) return;
+
     final text = jsonEncode(body);
-
     if (enableWsDebug) print("[WS TX] $text");
-
     _ws!.sink.add(text);
   }
 
-  /// ===== 參數設定（唯一寫入 API）=====
-  static setParam(Map<String, dynamic> p) => send({"cmd": "set_param", ...p});
+  // ===== API =====
+  static void setParam(Map<String, dynamic> p) =>
+      send({"cmd": "set_param", ...p});
 
-  /// ===== 相機 =====
-  static setCameraParam(Map<String, dynamic> p) =>
+  static void setCameraParam(Map<String, dynamic> p) =>
       send({"cmd": "camera_param", ...p});
 
-  /// ===== 主動取得狀態 =====
-  static getParams() => send({"cmd": "get_params"});
+  static void wifiStatus() => send({"cmd": "wifi_status"});
+  static void wifiScan() => send({"cmd": "wifi_scan"});
+
+  static void wifiConnect(String ssid, String pass) =>
+      send({"cmd": "wifi_connect", "ssid": ssid, "pass": pass});
+
+  static void wifiSave(String ssid, String pass) =>
+      send({"cmd": "wifi_save", "ssid": ssid, "pass": pass});
+
+  static void wifiDelete(String ssid) =>
+      send({"cmd": "wifi_delete", "ssid": ssid});
 }

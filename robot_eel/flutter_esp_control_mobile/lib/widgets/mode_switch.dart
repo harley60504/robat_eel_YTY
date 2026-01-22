@@ -80,7 +80,7 @@ class _ModeSwitchState extends State<ModeSwitch> {
   Widget build(BuildContext context) {
     return UiCard(
       title: "模式切換",
-      minHeight: 160, // ✅ 比其他卡片稍高一點
+      minHeight: 160,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

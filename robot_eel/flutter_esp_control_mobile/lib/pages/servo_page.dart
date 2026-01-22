@@ -5,7 +5,7 @@ import '../widgets/mode_switch.dart';
 import '../widgets/motion_param.dart';
 import '../widgets/system_status.dart';
 import '../widgets/servo_table.dart';
-import '../widgets/servo_control_panel.dart';
+import '../widgets/uart_mode_panel.dart'; // ✅ 新增
 import '../ui/ui_layout.dart';
 
 class ServoPage extends StatefulWidget {
@@ -48,8 +48,8 @@ class _ServoPageState extends State<ServoPage> {
   }
 
   Widget buildRightPanel() {
-    // ✅ mode=3 → UART slider
-    if (mode == 3) return const ServoControlPanel();
+    // ✅ mode=3 → UART slider + Python controller
+    if (mode == 3) return const UartModePanel();
 
     // ✅ 其他模式 → MotionParam + SystemStatus
     return Column(

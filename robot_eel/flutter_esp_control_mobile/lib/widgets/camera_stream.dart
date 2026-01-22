@@ -4,8 +4,6 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-/// ✅ Mobile (Android/iOS) 用 dart:io WebSocket
-/// ✅ Web 用 web_socket_channel
 import 'dart:io' as io;
 import 'package:web_socket_channel/web_socket_channel.dart';
 
@@ -18,11 +16,9 @@ class CameraStreamWS extends StatefulWidget {
 }
 
 class _CameraStreamWSState extends State<CameraStreamWS> {
-  // Mobile 用
   io.WebSocket? _socket;
   StreamSubscription? _socketSub;
 
-  // Web 用
   WebSocketChannel? _channel;
   StreamSubscription? _channelSub;
 
@@ -31,8 +27,6 @@ class _CameraStreamWSState extends State<CameraStreamWS> {
   int frameCount = 0;
   double fps = 0;
   DateTime lastTime = DateTime.now();
-
-  bool connected = false;
 
   @override
   void initState() {
@@ -52,33 +46,16 @@ class _CameraStreamWSState extends State<CameraStreamWS> {
     try {
       _socket = await io.WebSocket.connect(widget.wsUrl);
 
-      if (!mounted) return;
-      setState(() => connected = true);
-
       _socketSub = _socket!.listen(
         (data) {
           if (!mounted) return;
-
-          setState(() {
-            frame = Uint8List.fromList(data as List<int>);
-          });
-
+          setState(() => frame = Uint8List.fromList(data as List<int>));
           _calcFPS();
         },
-        onDone: () {
-          if (!mounted) return;
-          setState(() => connected = false);
-          debugPrint("Camera WS closed");
-        },
-        onError: (e) {
-          if (!mounted) return;
-          setState(() => connected = false);
-          debugPrint("Camera WS error: $e");
-        },
+        onDone: () => debugPrint("Camera WS closed"),
+        onError: (e) => debugPrint("Camera WS error: $e"),
       );
     } catch (e) {
-      if (!mounted) return;
-      setState(() => connected = false);
       debugPrint("Camera WS connect failed: $e");
     }
   }
@@ -86,9 +63,6 @@ class _CameraStreamWSState extends State<CameraStreamWS> {
   void _connectWeb() {
     try {
       _channel = WebSocketChannel.connect(Uri.parse(widget.wsUrl));
-
-      if (!mounted) return;
-      setState(() => connected = true);
 
       _channelSub = _channel!.stream.listen(
         (data) {
@@ -101,20 +75,10 @@ class _CameraStreamWSState extends State<CameraStreamWS> {
           setState(() => frame = bytes);
           _calcFPS();
         },
-        onDone: () {
-          if (!mounted) return;
-          setState(() => connected = false);
-          debugPrint("Camera WS closed (web)");
-        },
-        onError: (e) {
-          if (!mounted) return;
-          setState(() => connected = false);
-          debugPrint("Camera WS error (web): $e");
-        },
+        onDone: () => debugPrint("Camera WS closed (web)"),
+        onError: (e) => debugPrint("Camera WS error (web): $e"),
       );
     } catch (e) {
-      if (!mounted) return;
-      setState(() => connected = false);
       debugPrint("Camera WS connect failed (web): $e");
     }
   }
@@ -127,9 +91,9 @@ class _CameraStreamWSState extends State<CameraStreamWS> {
     if (diff >= 1000) {
       setState(() {
         fps = frameCount * 1000 / diff;
+        frameCount = 0;
+        lastTime = now;
       });
-      frameCount = 0;
-      lastTime = now;
     }
   }
 
@@ -149,50 +113,36 @@ class _CameraStreamWSState extends State<CameraStreamWS> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Colors.black, // ✅ 背景黑色（像監控畫面）
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
       child: Stack(
         children: [
-          // ✅ 置中 + 不拉伸：BoxFit.contain
-          if (frame == null)
-            Center(
-              child: Text(
-                connected ? "Waiting for camera…" : "Camera not connected",
-                style: const TextStyle(color: Colors.white70, fontSize: 16),
-              ),
-            )
-          else
-            Center(
-              child: Image.memory(
-                frame!,
-                gaplessPlayback: true,
-                fit: BoxFit.contain, // ✅ 不裁切不拉伸
-                filterQuality: FilterQuality.none,
-              ),
+          Container(
+            color: Colors.black12,
+            child: Center(
+              child: frame == null
+                  ? const Text("Waiting for camera…")
+                  : FittedBox(
+                      fit: BoxFit.contain, // ✅ 不拉伸，只置中縮放
+                      child: Image.memory(
+                        frame!,
+                        gaplessPlayback: true,
+                      ),
+                    ),
             ),
-
-          // ✅ 左上角資訊面板
+          ),
           Positioned(
-            top: 10,
-            left: 10,
-            child: DecoratedBox(
+            top: 8,
+            left: 8,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.55),
+                color: Colors.black54,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                child: DefaultTextStyle(
-                  style: const TextStyle(color: Colors.white, fontSize: 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text("FPS: ${fps.toStringAsFixed(1)}"),
-                      Text(connected ? "WS: Connected" : "WS: Disconnected"),
-                    ],
-                  ),
-                ),
+              child: Text(
+                "FPS: ${fps.toStringAsFixed(1)}",
+                style: const TextStyle(color: Colors.white),
               ),
             ),
           ),

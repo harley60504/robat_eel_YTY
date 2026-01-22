@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'pages/servo_page.dart';
 import 'pages/camera_page.dart';
+import 'pages/python_page.dart'; // ✅ 新增
 import 'pages/wifi_page.dart';
 
 import 'api/esp_api.dart';
@@ -47,9 +48,11 @@ class MainLayout extends StatefulWidget {
 class _MainLayoutState extends State<MainLayout> {
   int _selectedIndex = 0;
 
+  // ✅ pages 數量 = nav items 數量
   final List<Widget> _pages = const [
-    ServoPage(), // ✅ 用合併頁取代 DashboardPage
+    ServoPage(),
     CameraPage(),
+    PythonPage(),
     WiFiPage(),
   ];
 
@@ -71,37 +74,49 @@ class _MainLayoutState extends State<MainLayout> {
     );
   }
 
+  /// ✅ 手機版底部 Bar（四格）
   Widget buildBottomBar() => BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: (i) => setState(() => _selectedIndex = i),
+        type: BottomNavigationBarType.fixed, // ✅ 四格建議加這行
         items: const [
           BottomNavigationBarItem(
-              icon: Icon(Icons.dashboard), label: "Dashboard"),
+            icon: Icon(Icons.settings_remote),
+            label: "Servo",
+          ),
           BottomNavigationBarItem(
-              icon: Icon(Icons.camera_alt), label: "Camera"),
+            icon: Icon(Icons.camera_alt),
+            label: "Camera",
+          ),
           BottomNavigationBarItem(
-              icon: Icon(Icons.settings_remote), label: "Servo"),
-          BottomNavigationBarItem(icon: Icon(Icons.wifi), label: "WiFi"),
+            icon: Icon(Icons.computer),
+            label: "Python",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.wifi),
+            label: "WiFi",
+          ),
         ],
       );
 
+  /// ✅ 桌面版側邊欄（四格）
   Widget buildSidebar() => NavigationRail(
         selectedIndex: _selectedIndex,
         onDestinationSelected: (i) => setState(() => _selectedIndex = i),
         labelType: NavigationRailLabelType.all,
         destinations: const [
           NavigationRailDestination(
-            icon: Icon(Icons.dashboard),
-            label: Text("servo_control"),
+            icon: Icon(Icons.settings_remote),
+            label: Text("Servo"),
           ),
           NavigationRailDestination(
             icon: Icon(Icons.camera_alt),
             label: Text("Camera"),
           ),
-          // NavigationRailDestination(
-          //   icon: Icon(Icons.settings_remote),
-          //   label: Text("Servo"),
-          // ),
+          NavigationRailDestination(
+            icon: Icon(Icons.computer),
+            label: Text("Python"),
+          ),
           NavigationRailDestination(
             icon: Icon(Icons.wifi),
             label: Text("WiFi"),

@@ -75,14 +75,25 @@ class AsyncVideoRecorder:
             return
         self._running = False
 
-        # 通知 writer thread 結束
+        # ✅ 非阻塞送入 None；queue 滿就丟掉一些 frame 再塞 None
         try:
             if self._q is not None:
-                self._q.put(None)
+                try:
+                    self._q.put_nowait(None)
+                except queue.Full:
+                    for _ in range(50):
+                        try:
+                            self._q.get_nowait()
+                        except queue.Empty:
+                            break
+                    try:
+                        self._q.put_nowait(None)
+                    except:
+                        pass
         except:
             pass
 
-        # ✅ 等 thread 把 writer.release() 做完（避免壞檔/資源還沒釋放）
+        # ✅ join 也不要卡死
         try:
             if self._th is not None:
                 self._th.join(timeout=2.0)
@@ -95,13 +106,9 @@ class AsyncVideoRecorder:
         print("[Recorder] STOP")
 
     def push(self, frame_bgr):
-        """
-        frame_bgr: OpenCV BGR frame
-        """
         if not self._running or self._q is None:
             return
         try:
             self._q.put_nowait(frame_bgr)
         except queue.Full:
-            # 太慢就丟 frame，避免卡 sim
             pass

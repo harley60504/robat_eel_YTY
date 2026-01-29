@@ -1,3 +1,4 @@
+# recorder.py
 import os
 import time
 import queue
@@ -9,14 +10,15 @@ class AsyncVideoRecorder:
     """
     非同步錄影器：
     - 主迴圈只負責 recorder.push(frame)
-    - 背景 thread 寫檔，不會卡你的 sim
+    - 背景 thread 寫檔，不會卡 sim
     - 可以 start/stop 多次
     """
 
-    def __init__(self, out_dir="videos", fps=30, fourcc="mp4v"):
+    def __init__(self, out_dir="videos", fps=30, fourcc="mp4v", queue_size=500):
         self.out_dir = out_dir
         self.fps = int(fps)
         self.fourcc = fourcc
+        self.queue_size = int(queue_size)
 
         self._q = None
         self._th = None
@@ -30,7 +32,7 @@ class AsyncVideoRecorder:
         os.makedirs(self.out_dir, exist_ok=True)
 
     def is_recording(self) -> bool:
-        return self._running
+        return bool(self._running)
 
     def start(self, width: int, height: int, filename: str = None):
         if self._running:
@@ -45,19 +47,24 @@ class AsyncVideoRecorder:
 
         self._path = os.path.join(self.out_dir, filename)
 
-        self._q = queue.Queue(maxsize=500)  # 防爆記憶體
+        self._q = queue.Queue(maxsize=self.queue_size)
         self._running = True
 
         fourcc = cv2.VideoWriter_fourcc(*self.fourcc)
         self._writer = cv2.VideoWriter(self._path, fourcc, self.fps, (self._width, self._height))
 
         def _worker():
-            while True:
-                item = self._q.get()
-                if item is None:
-                    break
-                self._writer.write(item)
-            self._writer.release()
+            try:
+                while True:
+                    item = self._q.get()
+                    if item is None:
+                        break
+                    self._writer.write(item)
+            finally:
+                try:
+                    self._writer.release()
+                except:
+                    pass
 
         self._th = threading.Thread(target=_worker, daemon=True)
         self._th.start()
@@ -67,17 +74,31 @@ class AsyncVideoRecorder:
         if not self._running:
             return
         self._running = False
+
+        # 通知 writer thread 結束
         try:
-            self._q.put(None)
+            if self._q is not None:
+                self._q.put(None)
         except:
             pass
+
+        # ✅ 等 thread 把 writer.release() 做完（避免壞檔/資源還沒釋放）
+        try:
+            if self._th is not None:
+                self._th.join(timeout=2.0)
+        except:
+            pass
+
+        self._writer = None
+        self._q = None
+        self._th = None
         print("[Recorder] STOP")
 
     def push(self, frame_bgr):
         """
         frame_bgr: OpenCV BGR frame
         """
-        if not self._running:
+        if not self._running or self._q is None:
             return
         try:
             self._q.put_nowait(frame_bgr)

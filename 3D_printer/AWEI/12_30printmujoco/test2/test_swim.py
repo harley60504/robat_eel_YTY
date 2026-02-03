@@ -201,8 +201,8 @@ def run_mujoco(panel: ControlPanel, xml_path="eel.xml"):
                         t = env.data.time
                         num_j = len(env.data.ctrl)
                         current_bias = 0.0 if p_auto else p_turn
-                        ctrl = [current_bias + (p_amp * (0.4 + 0.6 * (i/(num_j-1)))) * np.sin(2 * np.pi * p_freq * t - i * p_step) for i in range(num_j)]
-                        
+                       # ctrl = [current_bias + (p_amp * (0.4 + 0.6 * (i/(num_j-1)))) * np.sin(2 * np.pi * p_freq * t - i * p_step) for i in range(num_j)]
+                        ctrl = [current_bias + p_amp * np.sin(2 * np.pi * p_freq * t) for i in range(num_j)]  #駐波
                         with viewer.lock():
                             env.data.ctrl[:] = np.clip(ctrl, -1.2, 1.2)
                             mujoco.mj_step(env.model, env.data)

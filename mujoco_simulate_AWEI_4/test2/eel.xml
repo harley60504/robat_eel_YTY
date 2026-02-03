@@ -4,11 +4,14 @@
   <option timestep="0.001" integrator="RK4" density="1000" viscosity="0.01" gravity="0 0 -9.81"/>
   
   <visual>
-    <global fovy="45" azimuth="135" elevation="-20"/>
+    <!-- 只留視角大小，不設定方向 -->
+    <global fovy="45"/>
+  
     <quality shadowsize="0"/>
-    <!-- <global offwidth="1280" offheight="720"/> -->
-    <rgba fog="0 0.5 0.8 1"/> 
-    <map fogstart="1" fogend="5"/> 
+  
+    <!-- 水霧效果 OK -->
+    <rgba fog="0 0.5 0.8 1"/>
+    <map fogstart="1" fogend="5"/>
   </visual>
  <asset>
   <mesh name="base_link_visual" file="base_link_visual.stl"/>
@@ -43,17 +46,17 @@
     diffuse="0.25 0.25 0.3"
     specular="0 0 0"/>
 
-    <geom name="floor" pos="0 0 -0.5" size="5 2 0.1" type="plane" material="matplane" contype="1" conaffinity="1"/>
-    <geom name="wall_front" type="box" pos="5 0 0" size="0.1 2 0.5" material="wall_brown_mat" contype="1" conaffinity="1"/>
-    <geom name="wall_back"  type="box" pos="-5 0 0" size="0.1 2 0.5" rgba="0 0.5 0.8 0.2" contype="1" conaffinity="1"/>
-    <geom name="wall_left"  type="box" pos="0 2 0" size="5 0.1 0.5" material="wall_brown_mat" contype="1" conaffinity="1"/>
-    <geom name="wall_right" type="box" pos="0 -2 0" size="5 0.1 0.5" material="wall_brown_mat" contype="1" conaffinity="1" /> 
+    <geom name="floor" pos="0 0 -0.5" size="2 2 0.1" type="plane" material="matplane" contype="1" conaffinity="1"/>
+    <geom name="wall_front" type="box" pos="2 0 0" size="0.1 2 0.5" material="wall_brown_mat" contype="1" conaffinity="1"/>
+    <geom name="wall_back"  type="box" pos="-2 0 0" size="0.1 2 0.5" rgba="0 0.5 0.8 0.2" contype="1" conaffinity="1"/>
+    <geom name="wall_left"  type="box" pos="0 2 0" size="2 0.1 0.5" material="wall_brown_mat" contype="1" conaffinity="1"/>
+    <geom name="wall_right" type="box" pos="0 -2 0" size="2 0.1 0.5" material="wall_brown_mat" contype="1" conaffinity="1" /> 
     <!-- <geom name="water_volume" type="box" pos="0 0 -0.25" size="4.95 1.95 0.27" material="water_visual_mat" contype="0" conaffinity="0" group="1"  /> -->
-    <geom name="water_surface" type="plane" pos="0 0 0" size="4.95 1.95 0.01" material="water_visual_mat" contype="0" conaffinity="0" group="1"/>
-    <geom name="center_line" type="capsule" pos="0 0 0" size="0.005 5" quat="0.7071 0 0.7071 0" 
+    <geom name="water_surface" type="plane" pos="0 0 0" size="1.95 1.95 0.01" material="water_visual_mat" contype="0" conaffinity="0" group="1"/>
+    <geom name="center_line" type="capsule" pos="0 0 0" size="0.005 2" quat="0.7071 0 0.7071 0" 
       rgba="1 0 0 0.5" contype="0" conaffinity="0" group="1"/>
     <!-- head -->
-    <body name="base_link" pos="-4 0 -0.02" >
+    <body name="base_link" pos="-1.2 0 -0.02" >
       <!-- <geom name="test_sphere" type="sphere" size="0.05" pos="0.02 0 0" fluidshape="ellipsoid" rgba="0 1 0 0.5"/> -->
       <!-- <freejoint name="root"/> -->
       <joint name="root_x" type="slide" pos="0 0 0" axis="1 0 0" limited="false" armature="0.01" damping="0.1"/>

@@ -40,7 +40,10 @@ class ControlPanel:
         self.sweep_toggle_req = False
         self.sweep_on = sweep_enable_default
         self.sweep_status = "SWEEP: OFF"
-        self.sweep_start_current_req = False
+
+        self.sweep_start_current_req = False   # T
+        self.sweep_start_all_algos_req = False # Y
+        self.sweep_abort_req = False           # X
         # ==================
 
         # telemetry
@@ -106,6 +109,14 @@ class ControlPanel:
         with self.lock:
             self.sweep_start_current_req = True
 
+    def request_start_sweep_all_algos(self):
+        with self.lock:
+            self.sweep_start_all_algos_req = True
+
+    def request_abort_sweep(self):
+        with self.lock:
+            self.sweep_abort_req = True
+
     def toggle_pause(self):
         with self.lock:
             self.paused = not self.paused
@@ -130,8 +141,11 @@ class ControlPanel:
         ttk.Button(top, text="Reset Cam (F)", command=self.request_focus_cam).grid(row=0, column=2, padx=4, sticky="e")
         ttk.Button(top, text="Follow Cam (G)", command=self.request_toggle_follow_cam).grid(row=0, column=3, padx=4, sticky="e")
         ttk.Button(top, text="Record (V)", command=self.request_toggle_record).grid(row=0, column=4, padx=4, sticky="e")
+
         ttk.Button(top, text="Auto Sweep (P)", command=self.request_toggle_sweep).grid(row=0, column=5, padx=4, sticky="e")
-        ttk.Button(top, text="Sweep Current Algo (T)", command=self.request_start_sweep_current_algo).grid(row=0, column=6, padx=4, sticky="e")
+        ttk.Button(top, text="Sweep Current (T)", command=self.request_start_sweep_current_algo).grid(row=0, column=6, padx=4, sticky="e")
+        ttk.Button(top, text="Sweep ALL (Y)", command=self.request_start_sweep_all_algos).grid(row=0, column=7, padx=4, sticky="e")
+        ttk.Button(top, text="ABORT Sweep (X)", command=self.request_abort_sweep).grid(row=0, column=8, padx=4, sticky="e")
 
         ttk.Label(top, textvariable=self.sweep_var, foreground="darkgreen").grid(row=1, column=0, sticky="w", pady=(4, 0))
 
@@ -207,7 +221,8 @@ class ControlPanel:
 
         help_txt = (
             "Keys: Space=Run/Pause, A/←=Left, D/→=Right, S=Straight, Q/W=bias-,+, E=bias=0, "
-            "R=Reset, F=ResetCam, G=FollowCam, V=Record, P=AutoSweep(toggle), T=SweepCurrentAlgo(start)"
+            "R=Reset, F=ResetCam, G=FollowCam, V=Record, "
+            "P=AutoSweep(toggle), T=SweepCurrent, Y=SweepALL, X=AbortSweep"
         )
         ttk.Label(frm, text=help_txt, foreground="gray").grid(row=7, column=0, columnspan=2, pady=(6, 0), sticky="w")
 
@@ -233,6 +248,8 @@ class ControlPanel:
         self.root.bind("v", lambda e: self.request_toggle_record())
         self.root.bind("p", lambda e: self.request_toggle_sweep())
         self.root.bind("t", lambda e: self.request_start_sweep_current_algo())
+        self.root.bind("y", lambda e: self.request_start_sweep_all_algos())
+        self.root.bind("x", lambda e: self.request_abort_sweep())
 
     # ---------- param/steer helpers ----------
     def _manual_update(self):

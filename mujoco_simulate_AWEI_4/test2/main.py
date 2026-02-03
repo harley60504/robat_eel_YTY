@@ -7,7 +7,6 @@ from sim_runner import run_mujoco
 
 
 if __name__ == "__main__":
-    # ✅ 確認你跑到的檔案就是這份
     print("RUNNING:", os.path.abspath(__file__))
 
     p = ControlPanel(

@@ -494,13 +494,17 @@ def run_mujoco(panel, xml_path="eel.xml"):
                                 if collided or timeout:
                                     break
 
-                                # record frames（sweep）
+                                # ✅ record frames（sweep）- 在影片中加上時間文字
                                 if sweep_case_recorder is not None and sweep_case_recorder.is_recording():
                                     sim_steps = int(env.data.time / env.model.opt.timestep)
                                     if sim_steps % recording_interval == 0:
                                         renderer.update_scene(env.data, camera=viewer.cam)
                                         frame = renderer.render()
                                         frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                                        
+                                        # 加入時間浮水印
+                                        cv2.putText(frame_bgr, f"Time: {env.data.time:.2f}s", (10, 30), 
+                                                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
                                         sweep_case_recorder.push(frame_bgr)
 
                             # telemetry（用最後狀態）
@@ -567,6 +571,10 @@ def run_mujoco(panel, xml_path="eel.xml"):
                                 renderer.update_scene(env.data, camera=viewer.cam)
                                 frame = renderer.render()
                                 frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                                
+                                # 加入時間浮水印
+                                cv2.putText(frame_bgr, f"Time: {env.data.time:.2f}s", (10, 30), 
+                                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
                                 manual_recorder.push(frame_bgr)
 
                     speed = np.linalg.norm(env.data.qvel[0:2])
@@ -586,12 +594,7 @@ def run_mujoco(panel, xml_path="eel.xml"):
                         viewer.cam.elevation = FOCUS_ELEV
                         viewer.cam.azimuth   = FOCUS_AZIM
 
-                
                 viewer.sync()
-
-                # ✅ 加速後不需要照 dt sleep，否則又被拖慢
-                # 如果你想「稍微穩定畫面」，可留一點點 sleep（例如 0.001）
-                # time.sleep(0.001)
 
     finally:
         manual_recorder.stop()

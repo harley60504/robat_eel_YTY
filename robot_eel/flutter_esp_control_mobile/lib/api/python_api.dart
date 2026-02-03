@@ -7,6 +7,9 @@ class PythonApi {
   static Uri _u(String host, String path) =>
       Uri.parse("http://$host:$port$path");
 
+  // =========================================================
+  // ESP Host
+  // =========================================================
   static Future<bool> setEspHost({
     required String pcHost,
     required String espHost,
@@ -27,6 +30,9 @@ class PythonApi {
     }
   }
 
+  // =========================================================
+  // Start / Stop
+  // =========================================================
   static Future<bool> start({
     required String pcHost,
     double base = 120,
@@ -62,6 +68,9 @@ class PythonApi {
     }
   }
 
+  // =========================================================
+  // setParams（✅ 不含 seq/ts）
+  // =========================================================
   static Future<bool> setParams({
     required String pcHost,
     double? base,
@@ -72,6 +81,7 @@ class PythonApi {
   }) async {
     try {
       final body = <String, dynamic>{};
+
       if (base != null) body["base"] = base;
       if (amp != null) body["amp"] = amp;
       if (freq != null) body["freq"] = freq;

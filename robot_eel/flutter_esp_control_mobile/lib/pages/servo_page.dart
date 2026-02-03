@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../api/esp_api.dart';
 import '../widgets/mode_switch.dart';
+import '../widgets/servo_table.dart';
+import '../widgets/servo_control_panel.dart';
 import '../widgets/motion_param.dart';
 import '../widgets/system_status.dart';
-import '../widgets/servo_table.dart';
-import '../widgets/uart_mode_panel.dart'; // ✅ 新增
 import '../ui/ui_layout.dart';
 
 class ServoPage extends StatefulWidget {
@@ -22,10 +22,9 @@ class _ServoPageState extends State<ServoPage> {
   void initState() {
     super.initState();
 
-    // ✅ 先吃快取（不用等廣播）
     final cached = WsControlApi.lastCtrlParams;
     if (cached != null) {
-      mode = cached["mode"] ?? -1;
+      mode = cached['mode'] ?? -1;
     }
 
     WsControlApi.ctrlParamsNotifier.addListener(_onCtrlParams);
@@ -35,7 +34,7 @@ class _ServoPageState extends State<ServoPage> {
     final msg = WsControlApi.ctrlParamsNotifier.value;
     if (!mounted || msg == null) return;
 
-    final newMode = msg["mode"] ?? -1;
+    final newMode = msg['mode'] ?? -1;
     if (newMode != mode) {
       setState(() => mode = newMode);
     }
@@ -47,13 +46,16 @@ class _ServoPageState extends State<ServoPage> {
     super.dispose();
   }
 
+  /// ✅ 這裡才是「mode 3 要不要換」的唯一判斷點
   Widget buildRightPanel() {
-    // ✅ mode=3 → UART slider + Python controller
-    if (mode == 3) return const UartModePanel();
+    if (mode == 3) {
+      // UART mode → Servo direct control
+      return const ServoControlPanel();
+    }
 
-    // ✅ 其他模式 → MotionParam + SystemStatus
+    // Other modes → Motion / System status
     return Column(
-      children: const [
+      children: [
         MotionParam(),
         SizedBox(height: UiLayout.gap),
         SystemStatus(),
@@ -84,7 +86,7 @@ class _ServoPageState extends State<ServoPage> {
               : Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ✅ Left: ModeSwitch + ServoTable
+                    // Left
                     Expanded(
                       child: Column(
                         children: [
@@ -97,7 +99,7 @@ class _ServoPageState extends State<ServoPage> {
 
                     const SizedBox(width: UiLayout.gap),
 
-                    // ✅ Right: side panel width unified
+                    // Right
                     ConstrainedBox(
                       constraints: UiLayout.sidePanelConstraints,
                       child: SizedBox(

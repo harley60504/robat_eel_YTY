@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 Widget wifiBars(int rssi) {
   int level = 1;
 
-  if (rssi >= -50)
+  if (rssi >= -50) {
     level = 4;
-  else if (rssi >= -60)
+  } else if (rssi >= -60)
     level = 3;
   else if (rssi >= -70)
     level = 2;

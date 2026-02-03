@@ -11,7 +11,7 @@ class PythonPage extends StatefulWidget {
 
 class _PythonPageState extends State<PythonPage> {
   final TextEditingController pcIpCtrl =
-      TextEditingController(text: "192.168.50.233"); // ✅ 改成你的 PC IP
+      TextEditingController(text: "192.168.50.233");
 
   bool running = false;
   String logText = "";
@@ -26,6 +26,7 @@ class _PythonPageState extends State<PythonPage> {
     setState(() => logText = "$s\n$logText");
   }
 
+  // ===========================
   Future<void> onSync() async {
     final pcHost = pcIpCtrl.text.trim();
     log("sync ESP32 host -> Python ...");
@@ -33,9 +34,12 @@ class _PythonPageState extends State<PythonPage> {
     final ok = await PythonBridge.syncEsp32HostToPython(pcHost: pcHost);
     log("sync ok = $ok");
 
-    if (!ok) log("❌ sync 失敗：請確認 PC IP 正確 & Python 有啟動");
+    if (!ok) {
+      log("❌ sync 失敗：請確認 PC IP 正確 & Python 有啟動");
+    }
   }
 
+  // ===========================
   Future<void> onStart() async {
     final pcHost = pcIpCtrl.text.trim();
 
@@ -58,15 +62,19 @@ class _PythonPageState extends State<PythonPage> {
     setState(() => running = ok);
   }
 
+  // ===========================
   Future<void> onStop() async {
     final pcHost = pcIpCtrl.text.trim();
     final ok = await PythonApi.stop(pcHost: pcHost);
     log("stop ok = $ok");
+
     setState(() => running = false);
   }
 
+  // ===========================
   Future<void> onApplyParams() async {
     final pcHost = pcIpCtrl.text.trim();
+
     final ok = await PythonApi.setParams(
       pcHost: pcHost,
       base: base,
@@ -75,9 +83,11 @@ class _PythonPageState extends State<PythonPage> {
       phaseStep: phaseStep,
       intervalMs: intervalMs,
     );
-    log("set_params ok = $ok");
+
+    log("set_params ok=$ok");
   }
 
+  // ===========================
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -131,8 +141,13 @@ class _PythonPageState extends State<PythonPage> {
             _slider("base", base, 0, 240, (v) => setState(() => base = v)),
             _slider("amp", amp, 0, 120, (v) => setState(() => amp = v)),
             _slider("freq", freq, 0.1, 3.0, (v) => setState(() => freq = v)),
-            _slider("phaseStep", phaseStep, 0.0, 3.14,
-                (v) => setState(() => phaseStep = v)),
+            _slider(
+              "phaseStep",
+              phaseStep,
+              0.0,
+              3.14,
+              (v) => setState(() => phaseStep = v),
+            ),
             const SizedBox(height: 12),
             Text("interval_ms = $intervalMs"),
             Slider(
@@ -160,8 +175,13 @@ class _PythonPageState extends State<PythonPage> {
     );
   }
 
-  Widget _slider(String name, double value, double min, double max,
-      ValueChanged<double> onChanged) {
+  Widget _slider(
+    String name,
+    double value,
+    double min,
+    double max,
+    ValueChanged<double> onChanged,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

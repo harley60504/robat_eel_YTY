@@ -3,34 +3,33 @@
 #include <ArduinoJson.h>
 #include <esp_camera.h>
 #include <WiFi.h>
+
 #include "wifi_manager.h"
 #include "CtrlUartBridge.h"
 #include "config.h"
 
 namespace {
 
-// ================= WS =================
 WebSocketsServer* g_ws = nullptr;
-
-// ================= Control cache =================
 ControlPacket g_pkt;
 
-// ================= Servo (HIGH RATE) =================
+uint32_t g_lastSeq = 0;
+
 unsigned long lastServoBroadcast = 0;
 constexpr unsigned long SERVO_INTERVAL_MS = 25;
 
-// ================= Low-rate snapshot =================
 unsigned long lastSnapshot = 0;
-constexpr unsigned long SNAPSHOT_INTERVAL_MS = 2000; // 2 秒
+constexpr unsigned long SNAPSHOT_INTERVAL_MS = 2000;
 
 } // namespace
 
+
 /* =========================================================
- * HIGH RATE — Servo Status
+ * Servo Status
  * ========================================================= */
 void CtrlWsServer::broadcastServoStatus(
     uint8_t count,
-    uint32_t seq,
+    uint32_t /*unused*/,
     const float *target,
     const float *actual,
     const float *error)
@@ -43,7 +42,7 @@ void CtrlWsServer::broadcastServoStatus(
 
     StaticJsonDocument<512> doc;
     doc["type"] = "servo_status";
-    doc["seq"]  = seq;
+    doc["seq"]  = g_lastSeq;
 
     auto t = doc.createNestedArray("target");
     auto a = doc.createNestedArray("actual");
@@ -60,8 +59,9 @@ void CtrlWsServer::broadcastServoStatus(
     g_ws->broadcastTXT(out);
 }
 
+
 /* =========================================================
- * LOW RATE — ctrl_params snapshot（可留可不留）
+ * ctrl_params snapshot
  * ========================================================= */
 void CtrlWsServer::tick()
 {
@@ -86,6 +86,7 @@ void CtrlWsServer::tick()
     g_ws->broadcastTXT(out);
 }
 
+
 /* =========================================================
  * INIT
  * ========================================================= */
@@ -93,25 +94,20 @@ void CtrlWsServer::begin(WebSocketsServer &ws)
 {
     g_ws = &ws;
 
-    /* ===== UART → ServoStatus (HIGH RATE) ===== */
     CtrlUartBridge::onServoStatus =
         [](const ServoStatus &s)
         {
-            if (s.header != SERVO_STATUS_HEADER) return;
-
             CtrlWsServer::broadcastServoStatus(
                 s.count, s.seq, s.target, s.actual, s.error
             );
         };
 
-    /* ===== UART → ctrl_params cache ===== */
     CtrlUartBridge::onCtrlParams =
         [](const ControlPacket &p)
         {
             g_pkt = p;
         };
 
-    /* ===== WS RX ===== */
     ws.onEvent([](uint8_t num,
                   WStype_t type,
                   uint8_t *payload,
@@ -124,8 +120,9 @@ void CtrlWsServer::begin(WebSocketsServer &ws)
 
         const char* cmd = doc["cmd"] | "";
 
-        /* ---- Control ---- */
+        /* ================= set_param（無 RTT） ================= */
         if (!strcmp(cmd, "set_param")) {
+
             if (doc.containsKey("Ajoint"))     g_pkt.Ajoint        = doc["Ajoint"];
             if (doc.containsKey("frequency")) g_pkt.frequency     = doc["frequency"];
             if (doc.containsKey("lambda"))    g_pkt.lambda        = doc["lambda"];
@@ -138,14 +135,33 @@ void CtrlWsServer::begin(WebSocketsServer &ws)
             return;
         }
 
-        /* ✅ Angle control：Flutter → WS → UART AnglePacket */
+        /* ================= set_angle（RTT） ================= */
         if (!strcmp(cmd, "set_angle")) {
+
+            uint32_t seq = doc["seq"] | 0;
+            g_lastSeq = seq;
+
+            unsigned long now = millis();
+
+            // ---- RTT ACK ----
+            if (g_ws) {
+                StaticJsonDocument<128> ack;
+                ack["type"] = "angle_ack";
+                ack["seq"]  = seq;
+                ack["esp_rx_millis"] = now;
+
+                String out;
+                serializeJson(ack, out);
+                g_ws->sendTXT(num, out);
+            }
+
+            // ---- 原本角度 ----
             if (!doc.containsKey("angles")) return;
 
             JsonArray arr = doc["angles"].as<JsonArray>();
             if (arr.isNull()) return;
 
-            float tmp[bodyNum] = {0};   // ✅ 用 bodyNum
+            float tmp[bodyNum] = {0};
             uint8_t count = 0;
 
             for (JsonVariant v : arr) {
@@ -155,12 +171,11 @@ void CtrlWsServer::begin(WebSocketsServer &ws)
 
             if (count == 0) return;
 
-            // UART → 控制板：AnglePacket
             CtrlUartBridge::sendAngle(tmp, count);
             return;
         }
 
-        /* ---- Camera ---- */
+        /* ================= camera_param ================= */
         if (!strcmp(cmd, "camera_param")) {
             sensor_t *s = esp_camera_sensor_get();
             if (!s) return;

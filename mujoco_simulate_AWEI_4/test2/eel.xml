@@ -5,10 +5,8 @@
   
   <visual>
     <!-- 只留視角大小，不設定方向 -->
-    <global fovy="45"/>
-  
+    <global fovy="45"  offwidth="1920" offheight="1080"/>
     <quality shadowsize="0"/>
-  
     <!-- 水霧效果 OK -->
     <rgba fog="0 0.5 0.8 1"/>
     <map fogstart="1" fogend="5"/>

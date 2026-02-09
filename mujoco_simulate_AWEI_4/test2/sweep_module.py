@@ -40,7 +40,11 @@ def execute_sweep_logic(env, swimmers, panel, initial_qpos, build_cases_func,
     metrics_dir = os.path.join(sweep_cfg["OUT_DIR"], algo_name)
     os.makedirs(metrics_dir, exist_ok=True)
 
-    metrics = MetricsLogger(out_dir=metrics_dir, filename="metrics.csv")
+    metrics = MetricsLogger(
+        out_dir=metrics_dir,
+        filename="metrics.csv",
+        overwrite=True   # ← 就是你問的這個
+    )
     num_j = len(env.data.ctrl)
 
     print(f"[SWEEP] 啟動成功: {algo_name}, 總計 {len(cases)} 組案例...")

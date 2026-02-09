@@ -5,14 +5,18 @@ import time
 
 
 class MetricsLogger:
-    def __init__(self, out_dir="videos_sweep", filename="metrics.csv"):
+    def __init__(self, out_dir="videos_sweep", filename="metrics.csv", overwrite=True):
         os.makedirs(out_dir, exist_ok=True)
         self.path = os.path.join(out_dir, filename)
-        self._fp = open(self.path, "a", newline="", encoding="utf-8")
+
+        # ✅ 關鍵：overwrite=True → 用 "w"，否則用 "a"
+        mode = "w" if overwrite else "a"
+
+        self._fp = open(self.path, mode, newline="", encoding="utf-8")
         self._w = csv.writer(self._fp)
 
-        # 如果是新檔案（空的）就寫 header
-        if self._fp.tell() == 0:
+        # 只在新檔或覆蓋時寫 header
+        if mode == "w" or self._fp.tell() == 0:
             self._w.writerow([
                 "timestamp",
                 "algo", "idx",

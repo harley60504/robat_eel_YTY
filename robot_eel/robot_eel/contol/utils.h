@@ -77,7 +77,6 @@ static inline void moveLX224(uint8_t id,
   if (position < 0) position = 0;
   if (position > 1000) position = 1000;
 
-
   uint8_t p[4];
   p[0] = position & 0xFF;
   p[1] = position >> 8;
@@ -88,12 +87,9 @@ static inline void moveLX224(uint8_t id,
 }
 
 // =====================================================
-// LX224 回傳讀取（最穩版本）
-// - 封包對齊
-// - 等待資料完全到齊
-// - CSV 紀錄
+// LX224 回傳讀取
 // =====================================================
-#define DEBUG_READ 0   // ← 打開 debug print
+#define DEBUG_READ 0
 
 inline int readPositionLX224(uint8_t id) {
     while (Serial1.available()) Serial1.read();
@@ -105,8 +101,7 @@ inline int readPositionLX224(uint8_t id) {
 
     unsigned long t0 = micros();
 
-    // 讀取 header (0x55, 0x55)
-    uint8_t header[2];
+    uint8_t header[2] = {0, 0};
     while (micros() - t0 < 5000) {
         if (Serial1.available()) {
             header[0] = header[1];
@@ -116,7 +111,6 @@ inline int readPositionLX224(uint8_t id) {
     }
     if (!(header[0] == 0x55 && header[1] == 0x55)) return -1;
 
-    // 讀取剩餘固定 5 bytes
     uint8_t resp[5];
     for (int i = 0; i < 5; i++) {
         while (!Serial1.available()) {
@@ -124,12 +118,6 @@ inline int readPositionLX224(uint8_t id) {
         }
         resp[i] = Serial1.read();
     }
-
-    // resp[0] = ID
-    // resp[1] = LEN
-    // resp[2] = CMD
-    // resp[3] = POS_L
-    // resp[4] = POS_H
 
     if (resp[0] != id) return -1;
     if (resp[2] != CMD_READ_POS) return -1;

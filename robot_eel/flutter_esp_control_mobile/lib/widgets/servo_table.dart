@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
-import 'package:excel/excel.dart';
+import 'package:excel/excel.dart' hide Border;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -26,12 +27,18 @@ class _ServoTableState extends State<ServoTable> {
 
   StreamSubscription? sub;
 
-  final excel = Excel.createExcel();
+  final Excel excel = Excel.createExcel();
   late final Sheet sheet;
+
+  late final ScrollController _verticalController;
+  late final ScrollController _horizontalController;
 
   @override
   void initState() {
     super.initState();
+
+    _verticalController = ScrollController();
+    _horizontalController = ScrollController();
 
     sheet = excel['ServoLog'];
     sheet.appendRow([
@@ -59,20 +66,41 @@ class _ServoTableState extends State<ServoTable> {
       if (data is! Map) return;
       if (data["type"] != "servo_status") return;
 
-      final int seq = data["seq"] ?? -1;
-      if (lastSeq == seq) return;
+      final int seq = (data["seq"] is num) ? (data["seq"] as num).toInt() : -1;
+
+      // 只有 seq 遞增才記錄
+      if (lastSeq != null && seq <= lastSeq!) return;
       lastSeq = seq;
 
-      final t =
-          (data["target"] as List).map((e) => (e as num).toDouble()).toList();
-      final a =
-          (data["actual"] as List).map((e) => (e as num).toDouble()).toList();
-      final e =
-          (data["error"] as List).map((e) => (e as num).toDouble()).toList();
+      final rawTarget = data["target"];
+      final rawActual = data["actual"];
+      final rawError = data["error"];
+
+      if (rawTarget is! List || rawActual is! List || rawError is! List) {
+        return;
+      }
+
+      late final List<double> t;
+      late final List<double> a;
+      late final List<double> e;
+
+      try {
+        t = rawTarget.map((v) => (v as num).toDouble()).toList();
+        a = rawActual.map((v) => (v as num).toDouble()).toList();
+        e = rawError.map((v) => (v as num).toDouble()).toList();
+      } catch (_) {
+        return;
+      }
+
+      final int len = [t.length, a.length, e.length].reduce(
+        (x, y) => x < y ? x : y,
+      );
+
+      if (len <= 0) return;
 
       final now = DateTime.now().toIso8601String();
 
-      for (int i = 0; i < t.length; i++) {
+      for (int i = 0; i < len; i++) {
         sheet.appendRow([
           IntCellValue(seq),
           TextCellValue(now),
@@ -83,10 +111,12 @@ class _ServoTableState extends State<ServoTable> {
         ]);
       }
 
+      if (!mounted) return;
+
       setState(() {
-        target = t;
-        actual = a;
-        error = e;
+        target = t.take(len).toList();
+        actual = a.take(len).toList();
+        error = e.take(len).toList();
         logCount++;
       });
     });
@@ -95,19 +125,36 @@ class _ServoTableState extends State<ServoTable> {
   @override
   void dispose() {
     sub?.cancel();
+    _verticalController.dispose();
+    _horizontalController.dispose();
     super.dispose();
   }
 
   Future<void> exportExcel() async {
     if (kIsWeb) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Web 暫不支援匯出")),
       );
       return;
     }
 
+    if (logCount <= 0) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("目前沒有可匯出的資料")),
+      );
+      return;
+    }
+
     final bytes = excel.encode();
-    if (bytes == null) return;
+    if (bytes == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Excel 產生失敗")),
+      );
+      return;
+    }
 
     final filename = "servo_log_${DateTime.now().millisecondsSinceEpoch}.xlsx";
 
@@ -120,15 +167,15 @@ class _ServoTableState extends State<ServoTable> {
         bytes: Uint8List.fromList(bytes),
       );
 
+      if (!mounted) return;
+
       if (path == null) {
-        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("已取消儲存")),
         );
         return;
       }
 
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("已匯出：$path")),
       );
@@ -142,57 +189,92 @@ class _ServoTableState extends State<ServoTable> {
 
   @override
   Widget build(BuildContext context) {
-    final n = target.length;
+    final int n = [target.length, actual.length, error.length].reduce(
+      (a, b) => a < b ? a : b,
+    );
 
     return UiCard(
       title: "Servo 狀態",
       minHeight: 360,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          LayoutBuilder(
-            builder: (context, constraints) {
-              return ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 260),
+          SizedBox(
+            height: 220,
+            width: double.infinity,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: Colors.black12,
+                  width: 1,
+                ),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
                 child: Scrollbar(
+                  controller: _verticalController,
                   thumbVisibility: true,
                   child: SingleChildScrollView(
+                    controller: _verticalController,
                     scrollDirection: Axis.vertical,
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          minWidth: constraints.maxWidth,
-                        ),
-                        child: DataTable(
-                          columnSpacing: 16,
-                          horizontalMargin: 12,
-                          headingRowHeight: 44,
-                          dataRowMinHeight: 40,
-                          dataRowMaxHeight: 40,
-                          columns: const [
-                            DataColumn(label: Text("CH")),
-                            DataColumn(label: Text("Target (deg)")),
-                            DataColumn(label: Text("Actual (deg)")),
-                            DataColumn(label: Text("Error (deg)")),
-                          ],
-                          rows: List.generate(n, (i) {
-                            return DataRow(
-                              cells: [
-                                DataCell(Text("CH${i + 1}")),
-                                DataCell(Text(target[i].toStringAsFixed(2))),
-                                DataCell(Text(actual[i].toStringAsFixed(2))),
-                                DataCell(Text(error[i].toStringAsFixed(2))),
-                              ],
-                            );
-                          }),
+                    child: Scrollbar(
+                      controller: _horizontalController,
+                      thumbVisibility: true,
+                      notificationPredicate: (_) => false,
+                      child: SingleChildScrollView(
+                        controller: _horizontalController,
+                        scrollDirection: Axis.horizontal,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(minWidth: 520),
+                          child: DataTable(
+                            columnSpacing: 16,
+                            horizontalMargin: 12,
+                            headingRowHeight: 44,
+                            dataRowMinHeight: 40,
+                            dataRowMaxHeight: 40,
+                            columns: const [
+                              DataColumn(label: Text("CH")),
+                              DataColumn(label: Text("Target (deg)")),
+                              DataColumn(label: Text("Actual (deg)")),
+                              DataColumn(label: Text("Error (deg)")),
+                            ],
+                            rows: n == 0
+                                ? const [
+                                    DataRow(
+                                      cells: [
+                                        DataCell(Text("-")),
+                                        DataCell(Text("-")),
+                                        DataCell(Text("-")),
+                                        DataCell(Text("-")),
+                                      ],
+                                    ),
+                                  ]
+                                : List.generate(n, (i) {
+                                    return DataRow(
+                                      cells: [
+                                        DataCell(Text("CH${i + 1}")),
+                                        DataCell(
+                                          Text(target[i].toStringAsFixed(2)),
+                                        ),
+                                        DataCell(
+                                          Text(actual[i].toStringAsFixed(2)),
+                                        ),
+                                        DataCell(
+                                          Text(error[i].toStringAsFixed(2)),
+                                        ),
+                                      ],
+                                    );
+                                  }),
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              );
-            },
+              ),
+            ),
           ),
           const SizedBox(height: 12),
           Wrap(

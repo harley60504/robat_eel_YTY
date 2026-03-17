@@ -13,7 +13,7 @@ namespace {
 WebSocketsServer* g_ws = nullptr;
 ControlPacket g_pkt;
 
-uint32_t g_lastSeq = 0;
+uint32_t g_lastSeq = 0;   // 只給 angle_ack 用
 
 unsigned long lastServoBroadcast = 0;
 constexpr unsigned long SERVO_INTERVAL_MS = 25;
@@ -29,7 +29,7 @@ constexpr unsigned long SNAPSHOT_INTERVAL_MS = 2000;
  * ========================================================= */
 void CtrlWsServer::broadcastServoStatus(
     uint8_t count,
-    uint32_t /*unused*/,
+    uint32_t seq,
     const float *target,
     const float *actual,
     const float *error)
@@ -42,7 +42,7 @@ void CtrlWsServer::broadcastServoStatus(
 
     StaticJsonDocument<512> doc;
     doc["type"] = "servo_status";
-    doc["seq"]  = g_lastSeq;
+    doc["seq"]  = seq;   // ✅ 用控制板送來的 ServoStatus.seq
 
     auto t = doc.createNestedArray("target");
     auto a = doc.createNestedArray("actual");
@@ -98,7 +98,11 @@ void CtrlWsServer::begin(WebSocketsServer &ws)
         [](const ServoStatus &s)
         {
             CtrlWsServer::broadcastServoStatus(
-                s.count, s.seq, s.target, s.actual, s.error
+                s.count,
+                s.seq,
+                s.target,
+                s.actual,
+                s.error
             );
         };
 
@@ -120,16 +124,16 @@ void CtrlWsServer::begin(WebSocketsServer &ws)
 
         const char* cmd = doc["cmd"] | "";
 
-        /* ================= set_param（無 RTT） ================= */
+        /* ================= set_param ================= */
         if (!strcmp(cmd, "set_param")) {
 
-            if (doc.containsKey("Ajoint"))     g_pkt.Ajoint        = doc["Ajoint"];
-            if (doc.containsKey("frequency")) g_pkt.frequency     = doc["frequency"];
-            if (doc.containsKey("lambda"))    g_pkt.lambda        = doc["lambda"];
-            if (doc.containsKey("L"))         g_pkt.L             = doc["L"];
-            if (doc.containsKey("paused"))    g_pkt.isPaused      = doc["paused"];
-            if (doc.containsKey("mode"))      g_pkt.controlMode   = doc["mode"];
-            if (doc.containsKey("feedback"))  g_pkt.feedbackGain  = doc["feedback"];
+            if (doc.containsKey("Ajoint"))     g_pkt.Ajoint       = doc["Ajoint"];
+            if (doc.containsKey("frequency"))  g_pkt.frequency    = doc["frequency"];
+            if (doc.containsKey("lambda"))     g_pkt.lambda       = doc["lambda"];
+            if (doc.containsKey("L"))          g_pkt.L            = doc["L"];
+            if (doc.containsKey("paused"))     g_pkt.isPaused     = doc["paused"];
+            if (doc.containsKey("mode"))       g_pkt.controlMode  = doc["mode"];
+            if (doc.containsKey("feedback"))   g_pkt.feedbackGain = doc["feedback"];
 
             CtrlUartBridge::sendCtrlParams(g_pkt);
             return;
@@ -143,11 +147,10 @@ void CtrlWsServer::begin(WebSocketsServer &ws)
 
             unsigned long now = millis();
 
-            // ---- RTT ACK ----
             if (g_ws) {
                 StaticJsonDocument<128> ack;
                 ack["type"] = "angle_ack";
-                ack["seq"]  = seq;
+                ack["seq"]  = seq;   // ✅ RTT 仍然用 Python 送進來的 seq
                 ack["esp_rx_millis"] = now;
 
                 String out;
@@ -155,7 +158,6 @@ void CtrlWsServer::begin(WebSocketsServer &ws)
                 g_ws->sendTXT(num, out);
             }
 
-            // ---- 原本角度 ----
             if (!doc.containsKey("angles")) return;
 
             JsonArray arr = doc["angles"].as<JsonArray>();

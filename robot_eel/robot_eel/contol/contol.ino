@@ -21,6 +21,7 @@
 // ServoStatusPacket
 ServoStatusPacket g_status;
 SemaphoreHandle_t statusMutex = NULL;
+volatile uint32_t g_servoStatusSeq = 0;
 // ==========================
 //  Servo defaults
 // ==========================

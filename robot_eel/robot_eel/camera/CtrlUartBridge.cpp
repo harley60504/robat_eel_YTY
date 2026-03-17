@@ -1,5 +1,5 @@
 #include "CtrlUartBridge.h"
-#include <cstring>      // memcpy
+#include <cstring>
 
 // ==== UART & 解包狀態 ====
 static HardwareSerial* g_ser = nullptr;
@@ -8,29 +8,29 @@ static HardwareSerial* g_ser = nullptr;
 static ControlRxState g_ctrlRx;
 
 // ServoStatus RX state
-static uint8_t buf[sizeof(ServoStatus)];   // ✅ 不要猜 256，永遠正確
-static size_t  idx = 0;
-static bool    receivingServo = false;
+static uint8_t buf[sizeof(ServoStatus)];
+static size_t idx = 0;
+static bool receivingServo = false;
 
 static const size_t SERVO_PKT_SIZE = sizeof(ServoStatus);
 
 // callbacks
-std::function<void(const ControlPacket&)> CtrlUartBridge::onCtrlParams  = nullptr;
-std::function<void(const ServoStatus&)>   CtrlUartBridge::onServoStatus = nullptr;
+std::function<void(const ControlPacket&)> CtrlUartBridge::onCtrlParams = nullptr;
+std::function<void(const ServoStatus&)> CtrlUartBridge::onServoStatus = nullptr;
 
 // ==================================================
-// UART RX Task（最安全：不亂吃 byte）
+// UART RX Task
 // ==================================================
 static void uartRxTask(void *pv)
 {
-  while(true)
+  while (true)
   {
-    while(g_ser && g_ser->available())
+    while (g_ser && g_ser->available())
     {
       uint8_t b = g_ser->read();
 
       // =====================================================
-      // 1) ServoStatus (0xBB) 收包優先處理
+      // 1) ServoStatus (0xBB)
       // =====================================================
       if (receivingServo)
       {
@@ -53,7 +53,9 @@ static void uartRxTask(void *pv)
             if (cs == ss.checksum)
             {
               if (CtrlUartBridge::onServoStatus)
+              {
                 CtrlUartBridge::onServoStatus(ss);
+              }
             }
           }
 
@@ -63,23 +65,23 @@ static void uartRxTask(void *pv)
       }
 
       // =====================================================
-      // 2) ControlPacket (0xAA) receiving 才餵
+      // 2) ControlPacket (0xAA)
       // =====================================================
       if (g_ctrlRx.receiving)
       {
         if (feedControlRx(g_ctrlRx, b))
         {
           if (CtrlUartBridge::onCtrlParams)
+          {
             CtrlUartBridge::onCtrlParams(g_ctrlRx.pkt);
+          }
         }
         continue;
       }
 
       // =====================================================
-      // 3) Idle：只認 header 來啟動 parser
+      // 3) Idle：只認 header
       // =====================================================
-
-      // ServoStatus header
       if (b == SERVO_STATUS_HEADER)
       {
         receivingServo = true;
@@ -88,7 +90,6 @@ static void uartRxTask(void *pv)
         continue;
       }
 
-      // ControlPacket header
       if (b == CONTROL_PACKET_HEADER)
       {
         feedControlRx(g_ctrlRx, b);
@@ -123,13 +124,12 @@ void CtrlUartBridge::sendCtrlParams(const ControlPacket &pkt)
 }
 
 // ==================================================
-// ✅ TX：AnglePacket（camera → 控制板）
+// TX：AnglePacket（camera → 控制板）
 // ==================================================
 void CtrlUartBridge::sendAngle(const float* targetDeg, uint8_t count)
 {
   if (!g_ser) return;
 
-  // ✅ 防呆：限制在 bodyNum
   if (count == 0) return;
   if (count > bodyNum) count = bodyNum;
 

@@ -14,80 +14,67 @@ class _PythonPageState extends State<PythonPage> {
       TextEditingController(text: "192.168.50.233");
 
   bool running = false;
+  bool measuring = false;
   String logText = "";
 
-  double base = 120;
-  double amp = 30;
-  double freq = 0.6;
-  double phaseStep = 0.7;
-  int intervalMs = 50;
-
   void log(String s) {
+    if (!mounted) return;
     setState(() => logText = "$s\n$logText");
   }
 
-  // ===========================
   Future<void> onSync() async {
     final pcHost = pcIpCtrl.text.trim();
     log("sync ESP32 host -> Python ...");
 
     final ok = await PythonBridge.syncEsp32HostToPython(pcHost: pcHost);
+    if (!mounted) return;
     log("sync ok = $ok");
-
-    if (!ok) {
-      log("❌ sync 失敗：請確認 PC IP 正確 & Python 有啟動");
-    }
   }
 
-  // ===========================
   Future<void> onStart() async {
     final pcHost = pcIpCtrl.text.trim();
 
-    log("1) sync ESP32 host -> Python ...");
-    final syncOk = await PythonBridge.syncEsp32HostToPython(pcHost: pcHost);
-    log("   sync ok = $syncOk");
-    if (!syncOk) return;
+    log("start python...");
+    final ok = await PythonApi.start(pcHost: pcHost);
 
-    log("2) start python loop ...");
-    final ok = await PythonApi.start(
-      pcHost: pcHost,
-      base: base,
-      amp: amp,
-      freq: freq,
-      phaseStep: phaseStep,
-      intervalMs: intervalMs,
-    );
-
-    log("   start ok = $ok");
+    if (!mounted) return;
     setState(() => running = ok);
+    log("start ok = $ok");
   }
 
-  // ===========================
   Future<void> onStop() async {
     final pcHost = pcIpCtrl.text.trim();
     final ok = await PythonApi.stop(pcHost: pcHost);
-    log("stop ok = $ok");
 
+    if (!mounted) return;
     setState(() => running = false);
+    log("stop ok = $ok");
   }
 
-  // ===========================
-  Future<void> onApplyParams() async {
+  Future<void> onMeasureToggle() async {
     final pcHost = pcIpCtrl.text.trim();
 
-    final ok = await PythonApi.setParams(
-      pcHost: pcHost,
-      base: base,
-      amp: amp,
-      freq: freq,
-      phaseStep: phaseStep,
-      intervalMs: intervalMs,
-    );
+    if (!measuring) {
+      final ok = await PythonApi.measureOn(pcHost: pcHost);
+      if (!mounted) return;
 
-    log("set_params ok=$ok");
+      setState(() => measuring = ok);
+      log(ok ? "measure ON" : "measure ON failed");
+    } else {
+      final ok = await PythonApi.measureOff(pcHost: pcHost);
+      if (!mounted) return;
+
+      setState(() => measuring = ok ? false : true);
+      log(ok ? "measure OFF" : "measure OFF failed");
+    }
   }
 
-  // ===========================
+  @override
+  void dispose() {
+    pcIpCtrl.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -98,30 +85,24 @@ class _PythonPageState extends State<PythonPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              "Python Controller（PC）",
+              "Python Controller",
               style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              "PC IP（FastAPI port=8000）",
-              style: TextStyle(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
             TextField(
               controller: pcIpCtrl,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
-                hintText: "例如 192.168.50.233",
+                hintText: "PC IP",
               ),
             ),
             const SizedBox(height: 12),
             Wrap(
               spacing: 12,
-              runSpacing: 8,
               children: [
                 ElevatedButton(
                   onPressed: onSync,
-                  child: const Text("同步 ESP32 Host → Python"),
+                  child: const Text("Sync"),
                 ),
                 ElevatedButton(
                   onPressed: running ? null : onStart,
@@ -132,67 +113,27 @@ class _PythonPageState extends State<PythonPage> {
                   child: const Text("Stop"),
                 ),
                 OutlinedButton(
-                  onPressed: running ? onApplyParams : null,
-                  child: const Text("套用參數"),
+                  onPressed: onMeasureToggle,
+                  child: Text(measuring ? "Measure OFF" : "Measure ON"),
                 ),
               ],
             ),
             const SizedBox(height: 16),
-            _slider("base", base, 0, 240, (v) => setState(() => base = v)),
-            _slider("amp", amp, 0, 120, (v) => setState(() => amp = v)),
-            _slider("freq", freq, 0.1, 3.0, (v) => setState(() => freq = v)),
-            _slider(
-              "phaseStep",
-              phaseStep,
-              0.0,
-              3.14,
-              (v) => setState(() => phaseStep = v),
-            ),
-            const SizedBox(height: 12),
-            Text("interval_ms = $intervalMs"),
-            Slider(
-              min: 10,
-              max: 200,
-              divisions: 19,
-              value: intervalMs.toDouble(),
-              onChanged: (v) => setState(() => intervalMs = v.toInt()),
-            ),
-            const SizedBox(height: 12),
-            const Text("Log", style: TextStyle(fontWeight: FontWeight.w700)),
-            const SizedBox(height: 8),
+            const Text("Log"),
             Container(
               width: double.infinity,
+              height: 180,
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 border: Border.all(color: Colors.black12),
-                borderRadius: BorderRadius.circular(8),
               ),
-              child: Text(logText.isEmpty ? "(no logs)" : logText),
+              child: SingleChildScrollView(
+                child: Text(logText.isEmpty ? "(no logs)" : logText),
+              ),
             ),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _slider(
-    String name,
-    double value,
-    double min,
-    double max,
-    ValueChanged<double> onChanged,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text("$name = ${value.toStringAsFixed(2)}"),
-        Slider(
-          min: min,
-          max: max,
-          value: value.clamp(min, max),
-          onChanged: onChanged,
-        ),
-      ],
     );
   }
 }

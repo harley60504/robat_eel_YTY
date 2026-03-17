@@ -46,16 +46,14 @@ class _ServoPageState extends State<ServoPage> {
     super.dispose();
   }
 
-  /// ✅ 這裡才是「mode 3 要不要換」的唯一判斷點
   Widget buildRightPanel() {
     if (mode == 3) {
-      // UART mode → Servo direct control
       return const ServoControlPanel();
     }
 
-    // Other modes → Motion / System status
     return Column(
-      children: [
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: const [
         MotionParam(),
         SizedBox(height: UiLayout.gap),
         SystemStatus(),
@@ -68,49 +66,58 @@ class _ServoPageState extends State<ServoPage> {
     final width = MediaQuery.of(context).size.width;
     final isMobile = width < UiLayout.mobileBreakpoint;
 
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: UiLayout.pageMaxWidth),
-        child: Padding(
-          padding: UiLayout.pagePadding,
-          child: isMobile
-              ? ListView(
-                  children: [
-                    const ModeSwitch(),
-                    const SizedBox(height: UiLayout.gap),
-                    ServoTable(),
-                    const SizedBox(height: UiLayout.gap),
-                    buildRightPanel(),
-                  ],
-                )
-              : Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Left
-                    Expanded(
-                      child: Column(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: UiLayout.pageMaxWidth),
+            child: SingleChildScrollView(
+              padding: UiLayout.pagePadding,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight:
+                      constraints.maxHeight - UiLayout.pagePadding.vertical,
+                ),
+                child: isMobile
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           const ModeSwitch(),
                           const SizedBox(height: UiLayout.gap),
-                          ServoTable(),
+                          const ServoTable(),
+                          const SizedBox(height: UiLayout.gap),
+                          buildRightPanel(),
+                        ],
+                      )
+                    : Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: const [
+                                ModeSwitch(),
+                                SizedBox(height: UiLayout.gap),
+                                ServoTable(),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: UiLayout.gap),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                buildRightPanel(),
+                              ],
+                            ),
+                          ),
                         ],
                       ),
-                    ),
-
-                    const SizedBox(width: UiLayout.gap),
-
-                    // Right
-                    ConstrainedBox(
-                      constraints: UiLayout.sidePanelConstraints,
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: buildRightPanel(),
-                      ),
-                    ),
-                  ],
-                ),
-        ),
-      ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

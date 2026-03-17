@@ -3,35 +3,29 @@
 
 #include <Arduino.h>
 #include "config.h"
-#include "utils.h"
+#include "PacketChecksum.h"
 
-// ✅ Servo Status Packet
 #define SERVO_STATUS_HEADER 0xBB
-
-// ✅ 用 bodyNum 當上限，永遠跟你的機器人段數一致
 #define SERVO_MAX bodyNum
 
 #pragma pack(push, 1)
 typedef struct {
-  uint8_t header;
-  uint8_t count;
+  uint8_t  header;
+  uint8_t  count;
   uint32_t seq;
-  float targetDeg[SERVO_MAX];
-  float actualDeg[SERVO_MAX];
-  float errorDeg[SERVO_MAX];
-  uint8_t checksum;
+  float    targetDeg[SERVO_MAX];
+  float    actualDeg[SERVO_MAX];
+  float    errorDeg[SERVO_MAX];
+  uint8_t  checksum;
 } ServoStatusPacket;
 #pragma pack(pop)
 
-// 你在其他地方定義的 servo state
 extern ServoState servoState[];
 extern float angleDeg[];
 
-// ✅ Snapshot buffer（只能在 .cpp 定義一次）
 extern ServoStatusPacket g_status;
-
-// ✅ Mutex（只能在 .cpp 定義一次）
 extern SemaphoreHandle_t statusMutex;
+extern volatile uint32_t g_servoStatusSeq;
 
 static inline void sendServoStatusUART(HardwareSerial& serial)
 {
@@ -40,17 +34,25 @@ static inline void sendServoStatusUART(HardwareSerial& serial)
   if (!xSemaphoreTake(statusMutex, 0))
     return;
 
-  serial.write((uint8_t*)&g_status, sizeof(ServoStatusPacket));
+  g_status.header = SERVO_STATUS_HEADER;
+  g_status.count  = SERVO_MAX;
+  g_status.seq    = g_servoStatusSeq++;
+
+  g_status.checksum = calcPacketChecksum(
+    reinterpret_cast<uint8_t*>(&g_status),
+    sizeof(ServoStatusPacket) - 1
+  );
+
+  serial.write(reinterpret_cast<uint8_t*>(&g_status), sizeof(ServoStatusPacket));
 
   xSemaphoreGive(statusMutex);
 }
 
-// ✅ UART TX Task（建議固定用 Serial2，看你架構）
 static inline void servoStatusTxTask(void *pv)
 {
   TickType_t lastWake = xTaskGetTickCount();
 
-  while(true)
+  while (true)
   {
     sendServoStatusUART(Serial2);
     vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(80));

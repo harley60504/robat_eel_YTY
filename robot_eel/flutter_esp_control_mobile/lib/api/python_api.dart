@@ -7,13 +7,12 @@ class PythonApi {
   static Uri _u(String host, String path) =>
       Uri.parse("http://$host:$port$path");
 
-  // =========================================================
+  // ===============================
   // ESP Host
-  // =========================================================
+  // ===============================
   static Future<bool> setEspHost({
     required String pcHost,
     required String espHost,
-    String espWsPath = "/ws",
   }) async {
     try {
       final res = await http.post(
@@ -21,7 +20,6 @@ class PythonApi {
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "esp_host": espHost,
-          "esp_ws_path": espWsPath,
         }),
       );
       return res.statusCode == 200;
@@ -30,29 +28,12 @@ class PythonApi {
     }
   }
 
-  // =========================================================
+  // ===============================
   // Start / Stop
-  // =========================================================
-  static Future<bool> start({
-    required String pcHost,
-    double base = 120,
-    double amp = 30,
-    double freq = 0.6,
-    double phaseStep = 0.7,
-    int intervalMs = 50,
-  }) async {
+  // ===============================
+  static Future<bool> start({required String pcHost}) async {
     try {
-      final res = await http.post(
-        _u(pcHost, "/start"),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          "base": base,
-          "amp": amp,
-          "freq": freq,
-          "phase_step": phaseStep,
-          "interval_ms": intervalMs,
-        }),
-      );
+      final res = await http.post(_u(pcHost, "/start"));
       return res.statusCode == 200;
     } catch (_) {
       return false;
@@ -68,31 +49,21 @@ class PythonApi {
     }
   }
 
-  // =========================================================
-  // setParams（✅ 不含 seq/ts）
-  // =========================================================
-  static Future<bool> setParams({
-    required String pcHost,
-    double? base,
-    double? amp,
-    double? freq,
-    double? phaseStep,
-    int? intervalMs,
-  }) async {
+  // ===============================
+  // RTT Measure
+  // ===============================
+  static Future<bool> measureOn({required String pcHost}) async {
     try {
-      final body = <String, dynamic>{};
+      final res = await http.post(_u(pcHost, "/measure_on"));
+      return res.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
 
-      if (base != null) body["base"] = base;
-      if (amp != null) body["amp"] = amp;
-      if (freq != null) body["freq"] = freq;
-      if (phaseStep != null) body["phase_step"] = phaseStep;
-      if (intervalMs != null) body["interval_ms"] = intervalMs;
-
-      final res = await http.post(
-        _u(pcHost, "/set_params"),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode(body),
-      );
+  static Future<bool> measureOff({required String pcHost}) async {
+    try {
+      final res = await http.post(_u(pcHost, "/measure_off"));
       return res.statusCode == 200;
     } catch (_) {
       return false;

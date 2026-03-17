@@ -2,6 +2,7 @@
 #define CONTROL_TO_CAMERA_H
 
 #include <Arduino.h>
+#include "PacketChecksum.h"
 
 /* ===============================
  *  UART Control Packet Definition
@@ -26,12 +27,10 @@ typedef struct {
 
 
 /* ===============================
- *  Checksum Utility
+ *  舊名稱相容：仍保留這個名字
  * =============================== */
 static inline uint8_t calcControlChecksum(const uint8_t* data, size_t len) {
-  uint8_t cs = 0;
-  for (size_t i = 0; i < len; i++) cs ^= data[i];
-  return cs;
+  return calcPacketChecksum(data, len);
 }
 
 
@@ -61,12 +60,12 @@ static inline void sendControlParamsUART(
   pkt.useFeedback   = useFeedback;
   pkt.feedbackGain  = feedbackGain;
 
-  pkt.checksum = calcControlChecksum(
-    (uint8_t*)&pkt,
+  pkt.checksum = calcPacketChecksum(
+    reinterpret_cast<const uint8_t*>(&pkt),
     sizeof(ControlPacket) - 1
   );
 
-  serial.write((uint8_t*)&pkt, sizeof(ControlPacket));
+  serial.write(reinterpret_cast<uint8_t*>(&pkt), sizeof(ControlPacket));
 }
 
 
@@ -83,13 +82,11 @@ typedef struct {
 /* ===============================
  *  Feed byte (return true = ok)
  * =============================== */
-static inline bool feedControlRx(ControlRxState &st, uint8_t b){
+static inline bool feedControlRx(ControlRxState &st, uint8_t b) {
+  uint8_t* buf = reinterpret_cast<uint8_t*>(&st.pkt);
 
-  uint8_t* buf = (uint8_t*)&st.pkt;
-
-  // wait for header
-  if(!st.receiving){
-    if(b == CONTROL_PACKET_HEADER){
+  if (!st.receiving) {
+    if (b == CONTROL_PACKET_HEADER) {
       st.receiving = true;
       st.index = 0;
       buf[st.index++] = b;
@@ -97,14 +94,13 @@ static inline bool feedControlRx(ControlRxState &st, uint8_t b){
     return false;
   }
 
-  // receiving...
   buf[st.index++] = b;
 
-  if(st.index >= sizeof(ControlPacket)){
+  if (st.index >= sizeof(ControlPacket)) {
     st.receiving = false;
 
-    uint8_t cs = calcControlChecksum(
-      (uint8_t*)&st.pkt,
+    uint8_t cs = calcPacketChecksum(
+      reinterpret_cast<uint8_t*>(&st.pkt),
       sizeof(ControlPacket) - 1
     );
 
@@ -114,4 +110,4 @@ static inline bool feedControlRx(ControlRxState &st, uint8_t b){
   return false;
 }
 
-#endif  // CONTROL_TO_CAMERA_H
+#endif

@@ -12,20 +12,34 @@ class ServoControlPanel extends StatefulWidget {
 
 class _ServoControlPanelState extends State<ServoControlPanel> {
   static const int servoCount = 6;
-
   static const double minDeg = 0;
   static const double maxDeg = 240;
 
   final List<double> angles = List.filled(servoCount, 120.0);
   bool autoSend = false;
 
+  late final ScrollController _scrollController;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   void sendAngles() {
+    final mode = WsControlApi.lastCtrlParams?['mode'] ?? -1;
+    if (mode != 3) return;
     WsControlApi.setAngle(angles);
   }
 
-  void setAngle(int index, double value) {
+  void setAngleOnly(int index, double value) {
     setState(() => angles[index] = value);
-    if (autoSend) sendAngles();
   }
 
   @override
@@ -38,15 +52,17 @@ class _ServoControlPanelState extends State<ServoControlPanel> {
           return ConstrainedBox(
             constraints: BoxConstraints(maxHeight: constraints.maxHeight),
             child: Scrollbar(
+              controller: _scrollController,
               thumbVisibility: true,
               child: SingleChildScrollView(
+                controller: _scrollController,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
                       title: const Text("即時送出"),
-                      subtitle: const Text("拖拉角度時立即送 set_angle"),
+                      subtitle: const Text("拖拉結束後自動送 set_angle"),
                       value: autoSend,
                       onChanged: (v) => setState(() => autoSend = v),
                     ),
@@ -59,8 +75,9 @@ class _ServoControlPanelState extends State<ServoControlPanel> {
                           children: [
                             Text(
                               "CH${i + 1}  ${angles[i].toStringAsFixed(1)}°",
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.w600),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                             Row(
                               children: [
@@ -69,7 +86,10 @@ class _ServoControlPanelState extends State<ServoControlPanel> {
                                     min: minDeg,
                                     max: maxDeg,
                                     value: angles[i].clamp(minDeg, maxDeg),
-                                    onChanged: (v) => setAngle(i, v),
+                                    onChanged: (v) => setAngleOnly(i, v),
+                                    onChangeEnd: (v) {
+                                      if (autoSend) sendAngles();
+                                    },
                                   ),
                                 ),
                                 SizedBox(

@@ -37,7 +37,7 @@ float lambda       = 0.7f;
 float L            = 0.85f;
 
 bool  isPaused     = false;
-int   controlMode  = 0;
+int   controlMode  = 2;
 bool  useFeedback  = false;
 float feedbackGain = 1.0f;
 

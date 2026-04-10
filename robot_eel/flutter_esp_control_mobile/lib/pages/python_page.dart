@@ -11,7 +11,7 @@ class PythonPage extends StatefulWidget {
 
 class _PythonPageState extends State<PythonPage> {
   final TextEditingController pcIpCtrl =
-      TextEditingController(text: "192.168.50.233");
+      TextEditingController(text: "127.0.0.1");
 
   bool running = false;
   bool measuring = false;

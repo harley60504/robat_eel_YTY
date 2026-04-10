@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 import math
 
-rtsp_url = "rtsp://admin:184342@192.168.50.199:554/live/profile.0/video"
+rtsp_url = "rtsp://admin:184342@192.168.0.102:554/live/profile.0/video"
 cap = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
 
 if not cap.isOpened():

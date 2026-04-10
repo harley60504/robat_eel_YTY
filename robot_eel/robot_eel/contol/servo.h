@@ -37,8 +37,7 @@ void servoTask(void *pv)
           {
             float outDeg =
               Ajoint *
-              sinf(j / fmaxf(lambda * L, 1e-6f)
-                   + 2 * PI * frequency * t);
+    sinf(2 * PI * frequency * t - j / fmaxf(lambda * L, 1e-6f));
 
             targetDeg = servoDefaultAngles[j] + outDeg;
           }

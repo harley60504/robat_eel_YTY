@@ -11,11 +11,7 @@
 #include "ControltoCamera.h"
 #include "AnglePacket.h"
 
-// ==========================
-//  UART Pins
-// ==========================
-#define CAMERA_RX_PIN   8
-#define CAMERA_TX_PIN   9
+
 
 
 // ServoStatusPacket
@@ -33,7 +29,7 @@ float angleDeg[bodyNum];
 // ==========================
 float Ajoint       = 20.0f;
 float frequency    = 0.7f;
-float lambda       = 0.7f;
+float lambda       = 3.0f;
 float L            = 0.85f;
 
 bool  isPaused     = false;

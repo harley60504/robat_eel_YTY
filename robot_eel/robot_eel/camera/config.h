@@ -1,13 +1,6 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-// WIFI AP mode
-#define WIFI_AP_SSID   "robot_eel"
-#define WIFI_AP_PASS   "12345678"
-
-// WIFI STA mode
-#define WIFI_STA_SSID  "YTY_2.4g"
-#define WIFI_STA_PASS  "weareytylab"
 
 // Camera defaults
 #define CAMERA_FRAME_SIZE    FRAMESIZE_SVGA
@@ -21,9 +14,10 @@
 // mDNS 名稱 → http://robot.local
 #define HOSTNAME  "robot"
 
-#define HOME_WIFI_SSID  "YTY_2.4g"
-#define HOME_WIFI_PASS  "weareytylab"
 // Servos
 #define bodyNum 6
 
+
+#define  UART_RX     D10 
+#define  UART_TX     D9
 #endif

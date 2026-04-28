@@ -34,15 +34,11 @@ void setup()
 
     // ============ UART Bridge ============
     //   UART2 → 控制板
-    //
-    //   RX = GPIO 8
-    //   TX = GPIO 9
-    //
     CtrlUartBridge::begin(
         Serial2,
         115200,
-        8,
-        9
+        UART_RX ,
+        UART_TX 
     );
 
 

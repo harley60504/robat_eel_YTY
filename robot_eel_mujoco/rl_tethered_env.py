@@ -7,7 +7,7 @@ from typing import Any
 import mujoco
 import numpy as np
 
-from hopf_cpg import HopfCPG, HopfCPGParams
+from hopf_cpg import HopfCPG, HopfCPGParams, amp_scales_to_mu_scales
 
 try:
     import gymnasium as gym
@@ -189,7 +189,7 @@ class EelTetheredRLEnv(gym.Env if gym is not None else object):
             frequency=float(frequency),
             wavelength=float(wavelength),
             ajoint=float(self.cfg.fixed_ajoint),
-            amp_scales=amp_scales,
+            mu_scales=amp_scales_to_mu_scales(amp_scales),
             phase_lags=phase_lags,
             fb_phase=float(self.cfg.fixed_fb_phase),
             fb_amp=float(self.cfg.fixed_fb_amp),

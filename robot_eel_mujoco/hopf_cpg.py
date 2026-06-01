@@ -9,16 +9,24 @@ def wrap_pi(x):
     return (x + np.pi) % (2.0 * np.pi) - np.pi
 
 
+def amp_scales_to_mu_scales(amp_scales: tuple[float, ...] | np.ndarray | None) -> tuple[float, ...] | None:
+    if amp_scales is None:
+        return None
+    values = np.asarray(amp_scales, dtype=np.float64)
+    return tuple(float(value * value) for value in values)
+
+
 @dataclass
 class HopfCPGParams:
     frequency: float = 1.0
     wavelength: float = 1.5
     body_length: float = 1.0
     ajoint: float = 0.45
-    alpha: float = 12.0
+    alpha: float = 4.0
     mu: float = 1.0
-    k_couple: float = 1.0
-    k_anchor: float = 0.3
+    mu_scales: tuple[float, ...] | None = None
+    k_couple: float = 0.35
+    k_anchor: float = 0.10
     k_fb_phase: float = 0.8
     k_fb_amp: float = 0.25
     fb_phase: float = 0.0
@@ -50,7 +58,8 @@ class HopfCPG:
 
         old_r = self.r.copy()
         old_theta = self.theta.copy()
-        dr = p.alpha * (p.mu - old_r * old_r) * old_r
+        mu_targets = self._mu_targets(p, self.num_joints)
+        dr = p.alpha * (mu_targets - old_r * old_r) * old_r
         dtheta = np.full(self.num_joints, omega, dtype=np.float64)
 
         for j in range(self.num_joints):
@@ -75,9 +84,8 @@ class HopfCPG:
         return self.output()
 
     def output(self) -> np.ndarray:
-        amp_scales = self._amp_scales(self.params, self.num_joints)
         joint_bias = self._joint_bias(self.params, self.num_joints)
-        return self.params.ajoint * amp_scales * self.r * np.cos(self.theta) + joint_bias
+        return self.params.ajoint * self.r * np.cos(self.theta) + joint_bias
 
     @staticmethod
     def _target_delta(params: HopfCPGParams) -> float:
@@ -99,14 +107,18 @@ class HopfCPG:
         return offsets
 
     @staticmethod
-    def _amp_scales(params: HopfCPGParams, num_joints: int) -> np.ndarray:
-        if params.amp_scales is None:
-            return np.ones(num_joints, dtype=np.float64)
+    def _mu_targets(params: HopfCPGParams, num_joints: int) -> np.ndarray:
+        mu_scales_source = params.mu_scales
+        if mu_scales_source is None and params.amp_scales is not None:
+            mu_scales_source = amp_scales_to_mu_scales(params.amp_scales)
 
-        amp_scales = np.asarray(params.amp_scales, dtype=np.float64)
-        if amp_scales.size != num_joints:
-            raise ValueError(f"amp_scales must have {num_joints} values, got {amp_scales.size}")
-        return amp_scales
+        if mu_scales_source is None:
+            return np.full(num_joints, params.mu, dtype=np.float64)
+
+        mu_scales = np.asarray(mu_scales_source, dtype=np.float64)
+        if mu_scales.size != num_joints:
+            raise ValueError(f"mu_scales must have {num_joints} values, got {mu_scales.size}")
+        return params.mu * np.maximum(0.0, mu_scales)
 
     @staticmethod
     def _joint_bias(params: HopfCPGParams, num_joints: int) -> np.ndarray:

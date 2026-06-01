@@ -8,6 +8,7 @@ import mujoco
 import numpy as np
 
 from hopf_cpg import HopfCPG, HopfCPGParams
+from view_rectangle_course import amp_scales_to_mu_scales, turning_amp_scales
 
 
 def parse_float_list(value: str, expected_len: int, name: str) -> tuple[float, ...]:
@@ -41,6 +42,18 @@ def parse_args():
         default=(0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
         help="Static per-joint steering offset in radians.",
     )
+    parser.add_argument(
+        "--turn-amp-gain",
+        type=float,
+        default=0.0,
+        help="Increase tail amplitude based on the largest joint-bias magnitude.",
+    )
+    parser.add_argument(
+        "--turn-phase-gain",
+        type=float,
+        default=0.0,
+        help="Increase tail-side phase lags based on the largest joint-bias magnitude.",
+    )
     parser.add_argument("--csv", type=Path, default=None)
     return parser.parse_args()
 
@@ -53,12 +66,25 @@ def main():
 
     base_body_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, "base_link")
     cpg = HopfCPG(num_joints=6)
+    steer_proxy = max(abs(value) for value in args.joint_bias) if args.joint_bias else 0.0
+    target_amp_scales = turning_amp_scales(args.amp_scales, steer_proxy, args.turn_amp_gain)
+    mu_scales = amp_scales_to_mu_scales(target_amp_scales)
+    phase_weights = np.array([0.0, 0.2, 0.5, 0.8, 1.0], dtype=np.float64)
+    base_phase_lags = np.asarray(args.phase_lags, dtype=np.float64)
+    phase_lags = tuple(
+        float(value)
+        for value in np.clip(
+            base_phase_lags + args.turn_phase_gain * steer_proxy * phase_weights,
+            0.25,
+            1.20,
+        )
+    )
     cpg_params = HopfCPGParams(
         frequency=args.freq,
         wavelength=args.wavelength,
         ajoint=args.ajoint,
-        amp_scales=args.amp_scales,
-        phase_lags=args.phase_lags,
+        mu_scales=mu_scales,
+        phase_lags=phase_lags,
         joint_bias=args.joint_bias,
     )
 
@@ -119,8 +145,8 @@ def main():
         f"  Hopf CPG: ajoint={args.ajoint:.3f}, freq={args.freq:.3f} Hz, "
         f"wavelength={args.wavelength:.4f}"
     )
-    print("  amp scales:", ", ".join(f"{value:.3f}" for value in args.amp_scales))
-    print("  phase lags:", ", ".join(f"{value:.3f}" for value in args.phase_lags))
+    print("  target amp scales:", ", ".join(f"{value:.3f}" for value in target_amp_scales))
+    print("  phase lags:", ", ".join(f"{value:.3f}" for value in phase_lags))
     print("  joint bias:", ", ".join(f"{value:.3f}" for value in args.joint_bias))
     print(f"  steady dx={dx: .4f} m, dy={dy: .4f} m")
     print(f"  mean vx={np.mean(arr[:, 4]): .4f} m/s")

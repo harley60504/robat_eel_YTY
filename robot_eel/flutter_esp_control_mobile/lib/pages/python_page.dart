@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../api/python_api.dart';
 import '../bridge/python_bridge.dart';
+import '../bridge/python_process_launcher.dart';
 import '../ui/ui_card.dart';
 
 class PythonPage extends StatefulWidget {
@@ -28,6 +29,25 @@ class _PythonPageState extends State<PythonPage> {
 
   Future<void> onStart() async {
     final pcHost = pcIpCtrl.text.trim();
+
+    log("check python API ...");
+    var ready = await PythonApi.ping(pcHost: pcHost);
+
+    if (!ready) {
+      log("python API offline, try local launch ...");
+      final launch = await PythonProcessLauncher.launch();
+      log(launch.message);
+
+      if (launch.ok) {
+        ready = await PythonApi.waitUntilReady(pcHost: pcHost);
+        log("python API ready = $ready");
+      }
+    }
+
+    if (!ready) {
+      log("python API not ready, cannot start");
+      return;
+    }
 
     log("sync ESP32 host -> Python ...");
     final syncOk = await PythonBridge.syncEsp32HostToPython(pcHost: pcHost);

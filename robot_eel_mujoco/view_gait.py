@@ -9,7 +9,7 @@ import mujoco
 import mujoco.viewer
 import numpy as np
 
-from hopf_cpg import HopfCPG, HopfCPGParams
+from hopf_cpg import HopfCPG, HopfCPGParams, amp_scales_to_mu_scales
 
 
 def parse_args():
@@ -53,7 +53,7 @@ def main():
         frequency=float(gait["freq"]),
         wavelength=float(gait["wavelength"]),
         ajoint=float(gait["ajoint"]),
-        amp_scales=tuple(float(value) for value in gait["amp_scales"]),
+        mu_scales=amp_scales_to_mu_scales(tuple(float(value) for value in gait["amp_scales"])),
         phase_lags=tuple(float(value) for value in gait["phase_lags"]),
         joint_bias=tuple(float(value) for value in gait["joint_bias"]),
     )

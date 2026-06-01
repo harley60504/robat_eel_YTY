@@ -8,7 +8,14 @@ import mujoco
 import numpy as np
 
 from hopf_cpg import HopfCPG, HopfCPGParams, wrap_pi
-from view_rectangle_course import parse_float_list, parse_waypoints, steering_profile
+from rectangle_path import RectanglePath
+from view_rectangle_course import (
+    amp_scales_to_mu_scales,
+    parse_float_list,
+    parse_waypoints,
+    steering_profile,
+    turning_amp_scales,
+)
 
 
 def parse_args():
@@ -31,14 +38,20 @@ def parse_args():
     parser.add_argument(
         "--waypoints",
         type=parse_waypoints,
-        default=parse_waypoints("0.55,-0.40;0.55,0.40;-0.55,0.40;-0.55,-0.40"),
+        default=parse_waypoints("1.10,-0.35;1.10,0.35;-1.10,0.35;-1.10,-0.35"),
     )
-    parser.add_argument("--reach-radius", type=float, default=0.22)
+    parser.add_argument("--controller", choices=("pure_pursuit", "waypoint"), default="pure_pursuit")
+    parser.add_argument("--path-half-x", type=float, default=1.10)
+    parser.add_argument("--path-half-y", type=float, default=0.40)
+    parser.add_argument("--lookahead", type=float, default=0.50)
+    parser.add_argument("--reach-radius", type=float, default=0.18)
     parser.add_argument("--steer-gain", type=float, default=0.50)
     parser.add_argument("--max-bias", type=float, default=0.34)
+    parser.add_argument("--turn-amp-gain", type=float, default=0.6)
     parser.add_argument("--steer-smoothing", type=float, default=0.08)
-    parser.add_argument("--reset-x", type=float, default=1.15)
+    parser.add_argument("--reset-x", type=float, default=1.725)
     parser.add_argument("--reset-y", type=float, default=0.90)
+    parser.add_argument("--contact-ignore-seconds", type=float, default=0.5)
     parser.add_argument("--csv", type=Path, default=None)
     return parser.parse_args()
 
@@ -50,10 +63,12 @@ def main():
     model.opt.gravity[:] = (0, 0, 0)
     base_body_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, "base_link")
     cpg = HopfCPG(num_joints=6)
+    path = RectanglePath(args.path_half_x, args.path_half_y)
 
     waypoint_index = 0
     waypoint_hits = 0
     laps = 0
+    last_path_s = 0.0
     out_of_bounds = False
     wall_contact_steps = 0
     wall_contact_names = set()
@@ -67,19 +82,32 @@ def main():
 
     for _ in range(int(round(args.seconds / model.opt.timestep))):
         base_pos = data.xpos[base_body_id].copy()
-        waypoint = args.waypoints[waypoint_index]
-        delta = waypoint - base_pos[:2]
-        distance = float(np.linalg.norm(delta))
-        min_distances[waypoint_index] = min(min_distances[waypoint_index], distance)
-
-        if distance < args.reach_radius:
-            waypoint_hits += 1
-            waypoint_index = (waypoint_index + 1) % len(args.waypoints)
-            if waypoint_index == 0:
+        if args.controller == "pure_pursuit":
+            path_s = path.closest_s(base_pos[:2])
+            if path_s + path.total_length * laps < last_path_s - 0.5 * path.total_length:
                 laps += 1
+            last_path_s = path_s + path.total_length * laps
+            target = path.point_at(path_s + args.lookahead)
+            segment_index, _ = path.progress_info(path_s)
+            waypoint_index = segment_index
+            waypoint_hits = int(last_path_s / max(path.total_length / 4.0, 1e-9))
+            delta = target - base_pos[:2]
+            distance = float(np.linalg.norm(delta))
+            min_distances[waypoint_index] = min(min_distances[waypoint_index], distance)
+        else:
             waypoint = args.waypoints[waypoint_index]
             delta = waypoint - base_pos[:2]
             distance = float(np.linalg.norm(delta))
+            min_distances[waypoint_index] = min(min_distances[waypoint_index], distance)
+
+            if distance < args.reach_radius:
+                waypoint_hits += 1
+                waypoint_index = (waypoint_index + 1) % len(args.waypoints)
+                if waypoint_index == 0:
+                    laps += 1
+                waypoint = args.waypoints[waypoint_index]
+                delta = waypoint - base_pos[:2]
+                distance = float(np.linalg.norm(delta))
 
         desired_yaw = float(np.arctan2(delta[1], delta[0]))
         heading_error = float(wrap_pi(desired_yaw - data.qpos[2]))
@@ -87,11 +115,13 @@ def main():
         alpha = float(np.clip(args.steer_smoothing, 0.0, 1.0))
         steer_state += alpha * (target_steer - steer_state)
         steer = steer_state
+        target_amp_scales = turning_amp_scales(args.amp_scales, steer, args.turn_amp_gain)
+        mu_scales = amp_scales_to_mu_scales(target_amp_scales)
         params = HopfCPGParams(
             frequency=args.freq,
             wavelength=args.wavelength,
             ajoint=args.ajoint,
-            amp_scales=args.amp_scales,
+            mu_scales=mu_scales,
             phase_lags=args.phase_lags,
             joint_bias=steering_profile(steer),
         )
@@ -100,16 +130,17 @@ def main():
 
         base_pos = data.xpos[base_body_id].copy()
         had_wall_contact = False
-        for i in range(data.ncon):
-            contact = data.contact[i]
-            if contact.geom1 in wall_geom_ids or contact.geom2 in wall_geom_ids:
-                had_wall_contact = True
-                wall_contact_names.add(
-                    (
-                        mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_GEOM, contact.geom1),
-                        mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_GEOM, contact.geom2),
+        if data.time >= args.contact_ignore_seconds:
+            for i in range(data.ncon):
+                contact = data.contact[i]
+                if contact.geom1 in wall_geom_ids or contact.geom2 in wall_geom_ids:
+                    had_wall_contact = True
+                    wall_contact_names.add(
+                        (
+                            mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_GEOM, contact.geom1),
+                            mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_GEOM, contact.geom2),
+                        )
                     )
-                )
         if had_wall_contact:
             wall_contact_steps += 1
 

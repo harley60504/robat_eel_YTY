@@ -7,6 +7,29 @@ class PythonApi {
   static Uri _u(String host, String path) =>
       Uri.parse("http://$host:$port$path");
 
+  static Future<bool> ping({required String pcHost}) async {
+    try {
+      final res = await http
+          .get(_u(pcHost, "/"))
+          .timeout(const Duration(milliseconds: 700));
+      return res.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<bool> waitUntilReady({
+    required String pcHost,
+    Duration timeout = const Duration(seconds: 8),
+  }) async {
+    final deadline = DateTime.now().add(timeout);
+    while (DateTime.now().isBefore(deadline)) {
+      if (await ping(pcHost: pcHost)) return true;
+      await Future.delayed(const Duration(milliseconds: 350));
+    }
+    return false;
+  }
+
   // ===============================
   // ESP Host
   // ===============================

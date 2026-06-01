@@ -7,7 +7,7 @@ from pathlib import Path
 import mujoco
 import numpy as np
 
-from hopf_cpg import HopfCPG, HopfCPGParams
+from hopf_cpg import HopfCPG, HopfCPGParams, amp_scales_to_mu_scales
 
 
 def parse_float_list(value: str, expected_len: int, name: str) -> tuple[float, ...]:
@@ -57,7 +57,7 @@ def main():
         frequency=args.freq,
         wavelength=args.wavelength,
         ajoint=args.ajoint,
-        amp_scales=args.amp_scales,
+        mu_scales=amp_scales_to_mu_scales(args.amp_scales),
         phase_lags=args.phase_lags,
         joint_bias=args.joint_bias,
     )

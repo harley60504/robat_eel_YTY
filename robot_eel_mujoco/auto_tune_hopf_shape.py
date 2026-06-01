@@ -8,7 +8,7 @@ from pathlib import Path
 import mujoco
 import numpy as np
 
-from hopf_cpg import HopfCPG, HopfCPGParams
+from hopf_cpg import HopfCPG, HopfCPGParams, amp_scales_to_mu_scales
 
 
 def parse_args():
@@ -68,7 +68,7 @@ def measure_case(
             frequency=freq,
             wavelength=wavelength,
             ajoint=ajoint,
-            amp_scales=amp_scales,
+            mu_scales=amp_scales_to_mu_scales(amp_scales),
             phase_lags=phase_lags,
             fb_phase=0.0,
             fb_amp=0.0,

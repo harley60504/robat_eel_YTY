@@ -7,7 +7,7 @@ from typing import Any
 import mujoco
 import numpy as np
 
-from hopf_cpg import HopfCPG, HopfCPGParams
+from hopf_cpg import HopfCPG, HopfCPGParams, amp_scales_to_mu_scales
 
 try:
     import gymnasium as gym
@@ -109,7 +109,7 @@ class EelFreeSwimRLEnv(gym.Env if gym is not None else object):
             frequency=self.cfg.fixed_frequency,
             wavelength=self.cfg.fixed_wavelength,
             ajoint=self.cfg.fixed_ajoint,
-            amp_scales=amp_scales,
+            mu_scales=amp_scales_to_mu_scales(amp_scales),
             phase_lags=phase_lags,
             fb_phase=0.0,
             fb_amp=0.0,

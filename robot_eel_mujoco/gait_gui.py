@@ -18,8 +18,8 @@ class GaitGui(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Eel Gait Viewer")
-        self.geometry("680x460")
-        self.minsize(620, 420)
+        self.geometry("820x520")
+        self.minsize(760, 480)
         self.process: subprocess.Popen | None = None
         self.output_queue: queue.Queue[str] = queue.Queue()
         self.reader_thread: threading.Thread | None = None
@@ -28,6 +28,13 @@ class GaitGui(tk.Tk):
         self.gaits = self.load_gaits()
         self.selected_gait = tk.StringVar(value=self.gaits[0]["file"].name if self.gaits else "")
         self.mode = tk.StringVar(value="rectangle")
+        self.step_control_mode = tk.StringVar(value="hopf")
+        self.step_period = tk.StringVar(value="3.0")
+        self.step_after_wavelength = tk.StringVar(value="3.0")
+        self.step_after_amp = tk.StringVar(value="0.55")
+        self.step_alpha = tk.StringVar(value="4.0")
+        self.step_k_couple = tk.StringVar(value="0.35")
+        self.step_k_anchor = tk.StringVar(value="0.10")
 
         self.create_widgets()
         self.protocol("WM_DELETE_WINDOW", self.on_close)
@@ -62,6 +69,7 @@ class GaitGui(tk.Tk):
         mode_box.pack(side=tk.RIGHT)
         ttk.Radiobutton(mode_box, text="Rectangle Course", variable=self.mode, value="rectangle", command=self.update_mode).pack(side=tk.LEFT)
         ttk.Radiobutton(mode_box, text="Fixed Gait", variable=self.mode, value="gait", command=self.update_mode).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Radiobutton(mode_box, text="CPG Step Test", variable=self.mode, value="step", command=self.update_mode).pack(side=tk.LEFT, padx=(8, 0))
 
         controls = ttk.Frame(outer)
         controls.pack(fill=tk.X, pady=(12, 0))
@@ -80,6 +88,43 @@ class GaitGui(tk.Tk):
 
         self.status = ttk.Label(controls, text="Ready")
         self.status.pack(side=tk.RIGHT)
+
+        self.step_options = ttk.LabelFrame(outer, text="CPG Step Test", padding=10)
+        self.step_options.pack(fill=tk.X, pady=(12, 0))
+
+        ttk.Label(self.step_options, text="Control").pack(side=tk.LEFT)
+        self.step_control_combo = ttk.Combobox(
+            self.step_options,
+            textvariable=self.step_control_mode,
+            values=("hopf", "sin"),
+            state="readonly",
+            width=8,
+        )
+        self.step_control_combo.pack(side=tk.LEFT, padx=(6, 14))
+
+        ttk.Label(self.step_options, text="Period").pack(side=tk.LEFT)
+        self.step_period_entry = ttk.Entry(self.step_options, textvariable=self.step_period, width=6)
+        self.step_period_entry.pack(side=tk.LEFT, padx=(6, 14))
+
+        ttk.Label(self.step_options, text="After lambda").pack(side=tk.LEFT)
+        self.step_wavelength_entry = ttk.Entry(self.step_options, textvariable=self.step_after_wavelength, width=7)
+        self.step_wavelength_entry.pack(side=tk.LEFT, padx=(6, 14))
+
+        ttk.Label(self.step_options, text="After amp").pack(side=tk.LEFT)
+        self.step_amp_entry = ttk.Entry(self.step_options, textvariable=self.step_after_amp, width=7)
+        self.step_amp_entry.pack(side=tk.LEFT, padx=(6, 0))
+
+        step_options_2 = ttk.Frame(self.step_options)
+        step_options_2.pack(fill=tk.X, pady=(8, 0))
+
+        ttk.Label(step_options_2, text="alpha").pack(side=tk.LEFT)
+        ttk.Entry(step_options_2, textvariable=self.step_alpha, width=7).pack(side=tk.LEFT, padx=(6, 14))
+
+        ttk.Label(step_options_2, text="k_couple").pack(side=tk.LEFT)
+        ttk.Entry(step_options_2, textvariable=self.step_k_couple, width=7).pack(side=tk.LEFT, padx=(6, 14))
+
+        ttk.Label(step_options_2, text="k_anchor").pack(side=tk.LEFT)
+        ttk.Entry(step_options_2, textvariable=self.step_k_anchor, width=7).pack(side=tk.LEFT, padx=(6, 0))
 
         body = ttk.Frame(outer)
         body.pack(fill=tk.BOTH, expand=True, pady=(14, 10))
@@ -124,6 +169,11 @@ class GaitGui(tk.Tk):
             self.info.insert(tk.END, "This opens the waypoint controller:\n")
             self.info.insert(tk.END, "view_rectangle_course.py\n\n")
             self.info.insert(tk.END, "It will swim around the 3 m x 1.5 m rectangle with wall collision.")
+        elif self.mode.get() == "step":
+            self.info.insert(tk.END, "mode: CPG step test\n\n")
+            self.info.insert(tk.END, "This opens:\n")
+            self.info.insert(tk.END, "view_cpg_step_change.py\n\n")
+            self.info.insert(tk.END, "It repeatedly switches wavelength and amplitude so Hopf and direct sin can be compared.")
         elif idx is None or idx >= len(self.gaits):
             self.info.insert(tk.END, "No gait selected.")
         else:
@@ -142,7 +192,18 @@ class GaitGui(tk.Tk):
         fixed_enabled = self.mode.get() == "gait"
         self.listbox.configure(state=tk.NORMAL if fixed_enabled else tk.DISABLED)
         self.refresh_button.configure(state=tk.NORMAL if fixed_enabled else tk.DISABLED)
+        step_enabled = self.mode.get() == "step"
+        self.set_children_state(self.step_options, tk.NORMAL if step_enabled else tk.DISABLED)
+        self.step_control_combo.configure(state="readonly" if step_enabled else tk.DISABLED)
         self.update_info()
+
+    def set_children_state(self, widget, state):
+        for child in widget.winfo_children():
+            try:
+                child.configure(state=state)
+            except tk.TclError:
+                pass
+            self.set_children_state(child, state)
 
     def open_viewer(self):
         if self.process is not None and self.process.poll() is None:
@@ -151,6 +212,37 @@ class GaitGui(tk.Tk):
         if self.mode.get() == "rectangle":
             cmd = [sys.executable, str(ROOT / "view_rectangle_course.py"), "--print-contacts"]
             label = "rectangle course"
+        elif self.mode.get() == "step":
+            try:
+                period = float(self.step_period.get())
+                after_wavelength = float(self.step_after_wavelength.get())
+                after_amp = float(self.step_after_amp.get())
+                alpha = float(self.step_alpha.get())
+                k_couple = float(self.step_k_couple.get())
+                k_anchor = float(self.step_k_anchor.get())
+            except ValueError:
+                messagebox.showwarning("Bad value", "Step-test values must be numbers.")
+                return
+            cmd = [
+                sys.executable,
+                str(ROOT / "view_cpg_step_change.py"),
+                "--control-mode",
+                self.step_control_mode.get(),
+                "--repeat",
+                "--switch-period",
+                str(period),
+                "--after-wavelength",
+                str(after_wavelength),
+                "--after-amp-scale",
+                str(after_amp),
+                "--alpha",
+                str(alpha),
+                "--k-couple",
+                str(k_couple),
+                "--k-anchor",
+                str(k_anchor),
+            ]
+            label = f"CPG step test ({self.step_control_mode.get()})"
         else:
             idx = self.selected_index()
             if idx is None:

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:excel/excel.dart' hide Border;
 import 'package:file_picker/file_picker.dart';
@@ -11,7 +10,9 @@ import '../api/esp_api.dart';
 import '../ui/ui_card.dart';
 
 class ServoTable extends StatefulWidget {
-  const ServoTable({super.key});
+  final bool compact;
+
+  const ServoTable({super.key, this.compact = false});
 
   @override
   State<ServoTable> createState() => _ServoTableState();
@@ -92,7 +93,7 @@ class _ServoTableState extends State<ServoTable> {
         return;
       }
 
-      final int len = [t.length, a.length, e.length].reduce(
+      final int len = [t.length, a.length, e.length, 6].reduce(
         (x, y) => x < y ? x : y,
       );
 
@@ -192,82 +193,81 @@ class _ServoTableState extends State<ServoTable> {
     final int n = [target.length, actual.length, error.length].reduce(
       (a, b) => a < b ? a : b,
     );
+    final int visibleRows = n > 6 ? 6 : n;
 
-    return UiCard(
-      title: "Servo 狀態",
-      minHeight: 360,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            height: 220,
-            width: double.infinity,
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: Colors.black12,
-                  width: 1,
-                ),
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          height: widget.compact ? 196 : 220,
+          width: double.infinity,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: Theme.of(context).dividerColor,
+                width: 1,
               ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Scrollbar(
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Scrollbar(
+                controller: _verticalController,
+                thumbVisibility: true,
+                child: SingleChildScrollView(
                   controller: _verticalController,
-                  thumbVisibility: true,
-                  child: SingleChildScrollView(
-                    controller: _verticalController,
-                    scrollDirection: Axis.vertical,
-                    child: Scrollbar(
+                  scrollDirection: Axis.vertical,
+                  child: Scrollbar(
+                    controller: _horizontalController,
+                    thumbVisibility: true,
+                    notificationPredicate: (_) => false,
+                    child: SingleChildScrollView(
                       controller: _horizontalController,
-                      thumbVisibility: true,
-                      notificationPredicate: (_) => false,
-                      child: SingleChildScrollView(
-                        controller: _horizontalController,
-                        scrollDirection: Axis.horizontal,
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(minWidth: 520),
-                          child: DataTable(
-                            columnSpacing: 16,
-                            horizontalMargin: 12,
-                            headingRowHeight: 44,
-                            dataRowMinHeight: 40,
-                            dataRowMaxHeight: 40,
-                            columns: const [
-                              DataColumn(label: Text("CH")),
-                              DataColumn(label: Text("Target (deg)")),
-                              DataColumn(label: Text("Actual (deg)")),
-                              DataColumn(label: Text("Error (deg)")),
-                            ],
-                            rows: n == 0
-                                ? const [
-                                    DataRow(
-                                      cells: [
-                                        DataCell(Text("-")),
-                                        DataCell(Text("-")),
-                                        DataCell(Text("-")),
-                                        DataCell(Text("-")),
-                                      ],
-                                    ),
-                                  ]
-                                : List.generate(n, (i) {
-                                    return DataRow(
-                                      cells: [
-                                        DataCell(Text("CH${i + 1}")),
-                                        DataCell(
-                                          Text(target[i].toStringAsFixed(2)),
-                                        ),
-                                        DataCell(
-                                          Text(actual[i].toStringAsFixed(2)),
-                                        ),
-                                        DataCell(
-                                          Text(error[i].toStringAsFixed(2)),
-                                        ),
-                                      ],
-                                    );
-                                  }),
-                          ),
+                      scrollDirection: Axis.horizontal,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minWidth: widget.compact ? 320 : 480,
+                        ),
+                        child: DataTable(
+                          columnSpacing: widget.compact ? 8 : 16,
+                          horizontalMargin: widget.compact ? 6 : 12,
+                          headingRowHeight: widget.compact ? 34 : 44,
+                          dataRowMinHeight: widget.compact ? 32 : 40,
+                          dataRowMaxHeight: widget.compact ? 32 : 40,
+                          columns: const [
+                            DataColumn(label: Text("CH")),
+                            DataColumn(label: Text("Target")),
+                            DataColumn(label: Text("Actual")),
+                            DataColumn(label: Text("Error")),
+                          ],
+                          rows: visibleRows == 0
+                              ? const [
+                                  DataRow(
+                                    cells: [
+                                      DataCell(Text("-")),
+                                      DataCell(Text("-")),
+                                      DataCell(Text("-")),
+                                      DataCell(Text("-")),
+                                    ],
+                                  ),
+                                ]
+                              : List.generate(visibleRows, (i) {
+                                  return DataRow(
+                                    cells: [
+                                      DataCell(Text("${i + 1}")),
+                                      DataCell(
+                                        Text(target[i].toStringAsFixed(2)),
+                                      ),
+                                      DataCell(
+                                        Text(actual[i].toStringAsFixed(2)),
+                                      ),
+                                      DataCell(
+                                        Text(error[i].toStringAsFixed(2)),
+                                      ),
+                                    ],
+                                  );
+                                }),
                         ),
                       ),
                     ),
@@ -276,22 +276,31 @@ class _ServoTableState extends State<ServoTable> {
               ),
             ),
           ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 12,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              ElevatedButton(
-                onPressed: exportExcel,
-                child: const Text("匯出 Excel"),
-              ),
-              Text("已記錄 $logCount 筆"),
-              Text("最新 Seq = ${lastSeq ?? '-'}"),
-            ],
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 12,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            ElevatedButton(
+              onPressed: exportExcel,
+              child: const Text("匯出 Excel"),
+            ),
+            Text("已記錄 $logCount 筆"),
+          ],
+        ),
+      ],
+    );
+
+    if (widget.compact) {
+      return content;
+    }
+
+    return UiCard(
+      title: "Servo 狀態",
+      minHeight: 340,
+      child: content,
     );
   }
 }

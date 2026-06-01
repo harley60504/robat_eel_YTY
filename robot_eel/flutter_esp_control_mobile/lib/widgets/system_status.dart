@@ -4,7 +4,9 @@ import '../api/esp_api.dart';
 import '../ui/ui_card.dart';
 
 class SystemStatus extends StatefulWidget {
-  const SystemStatus({super.key});
+  final bool compact;
+
+  const SystemStatus({super.key, this.compact = false});
 
   @override
   State<SystemStatus> createState() => _SystemStatusState();
@@ -60,19 +62,29 @@ class _SystemStatusState extends State<SystemStatus> {
 
   @override
   Widget build(BuildContext context) {
+    final summary = Wrap(
+      spacing: 12,
+      runSpacing: 6,
+      children: [
+        Text("頻率 ${fmt(freq, unit: " Hz")}"),
+        Text("振幅 ${fmt(amp, unit: " °")}"),
+        Text("λ ${fmt(lambda)}"),
+        Text("L ${fmt(L)}"),
+        Text("回授 ${fmt(fbGain)}"),
+        Text(paused ? "暫停" : "運行中"),
+      ],
+    );
+
+    if (widget.compact) {
+      return summary;
+    }
+
     return UiCard(
       title: "系統狀態",
-      minHeight: 200,
+      minHeight: 160,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text("頻率：${fmt(freq, unit: " Hz")}"),
-          Text("振幅：${fmt(amp, unit: " °")}"),
-          Text("λ：${fmt(lambda)}"),
-          Text("L：${fmt(L)}"),
-          Text("回授權重：${fmt(fbGain)}"),
-          Text("狀態：${paused ? "暫停" : "運行中"}"),
-        ],
+        children: [summary],
       ),
     );
   }

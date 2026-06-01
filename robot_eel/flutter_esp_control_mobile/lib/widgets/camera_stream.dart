@@ -8,7 +8,15 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 
 class CameraStreamWS extends StatefulWidget {
   final String wsUrl;
-  const CameraStreamWS({super.key, required this.wsUrl});
+  final bool initiallyPaused;
+  final bool showFullscreenButton;
+
+  const CameraStreamWS({
+    super.key,
+    required this.wsUrl,
+    this.initiallyPaused = true,
+    this.showFullscreenButton = true,
+  });
 
   @override
   State<CameraStreamWS> createState() => _CameraStreamWSState();
@@ -22,6 +30,7 @@ class _CameraStreamWSState extends State<CameraStreamWS> {
   StreamSubscription? _channelSub;
 
   Uint8List? frame;
+  late bool paused;
 
   int frameCount = 0;
   double fps = 0;
@@ -30,15 +39,68 @@ class _CameraStreamWSState extends State<CameraStreamWS> {
   @override
   void initState() {
     super.initState();
-    _connect();
+    paused = widget.initiallyPaused;
+    if (!paused) _connect();
   }
 
   Future<void> _connect() async {
+    await _disconnect();
     if (kIsWeb) {
       _connectWeb();
     } else {
       await _connectMobile();
     }
+  }
+
+  Future<void> _disconnect() async {
+    await _socketSub?.cancel();
+    await _channelSub?.cancel();
+
+    await _socket?.close();
+    await _channel?.sink.close();
+
+    _socketSub = null;
+    _channelSub = null;
+    _socket = null;
+    _channel = null;
+  }
+
+  Future<void> togglePause() async {
+    if (paused) {
+      setState(() => paused = false);
+      await _connect();
+    } else {
+      setState(() {
+        paused = true;
+        fps = 0;
+        frameCount = 0;
+      });
+      await _disconnect();
+    }
+  }
+
+  void openFullscreen() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) {
+          return Scaffold(
+            backgroundColor: Colors.black,
+            appBar: AppBar(
+              backgroundColor: Colors.black,
+              title: const Text("Camera"),
+            ),
+            body: SafeArea(
+              child: CameraStreamWS(
+                wsUrl: widget.wsUrl,
+                initiallyPaused: false,
+                showFullscreenButton: false,
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 
   Future<void> _connectMobile() async {
@@ -98,15 +160,7 @@ class _CameraStreamWSState extends State<CameraStreamWS> {
 
   @override
   void dispose() {
-    _socketSub?.cancel();
-    _channelSub?.cancel();
-
-    _socket?.close();
-    _channel?.sink.close();
-
-    _socket = null;
-    _channel = null;
-
+    _disconnect();
     super.dispose();
   }
 
@@ -117,24 +171,35 @@ class _CameraStreamWSState extends State<CameraStreamWS> {
       child: Stack(
         children: [
           Container(
-            color: Colors.black12,
+            color: const Color(0xFF151A20),
             child: Center(
-              child: frame == null
-                  ? const Text("Waiting for camera…")
-                  : FittedBox(
-                      fit: BoxFit.contain, // ✅ 不拉伸，只置中縮放
-                      child: Image.memory(
-                        frame!,
-                        gaplessPlayback: true,
-                      ),
-                    ),
+              child: paused
+                  ? const Text(
+                      "Camera paused",
+                      style: TextStyle(color: Colors.white70),
+                    )
+                  : frame == null
+                      ? const Text(
+                          "Waiting for camera...",
+                          style: TextStyle(color: Colors.white70),
+                        )
+                      : FittedBox(
+                          fit: BoxFit.contain, // ✅ 不拉伸，只置中縮放
+                          child: Image.memory(
+                            frame!,
+                            gaplessPlayback: true,
+                          ),
+                        ),
             ),
           ),
           Positioned(
             top: 8,
             left: 8,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 6,
+              ),
               decoration: BoxDecoration(
                 color: Colors.black54,
                 borderRadius: BorderRadius.circular(8),
@@ -143,6 +208,27 @@ class _CameraStreamWSState extends State<CameraStreamWS> {
                 "FPS: ${fps.toStringAsFixed(1)}",
                 style: const TextStyle(color: Colors.white),
               ),
+            ),
+          ),
+          Positioned(
+            top: 8,
+            right: 8,
+            child: Row(
+              children: [
+                IconButton.filled(
+                  tooltip: paused ? "播放" : "暫停",
+                  onPressed: togglePause,
+                  icon: Icon(paused ? Icons.play_arrow : Icons.pause),
+                ),
+                if (widget.showFullscreenButton) ...[
+                  const SizedBox(width: 8),
+                  IconButton.filled(
+                    tooltip: "全螢幕",
+                    onPressed: openFullscreen,
+                    icon: const Icon(Icons.fullscreen),
+                  ),
+                ],
+              ],
             ),
           ),
         ],

@@ -4,7 +4,9 @@ import '../ui/ui_card.dart';
 import '../ui/ui_layout.dart';
 
 class ServoControlPanel extends StatefulWidget {
-  const ServoControlPanel({super.key});
+  final bool compact;
+
+  const ServoControlPanel({super.key, this.compact = false});
 
   @override
   State<ServoControlPanel> createState() => _ServoControlPanelState();
@@ -45,8 +47,8 @@ class _ServoControlPanelState extends State<ServoControlPanel> {
   @override
   Widget build(BuildContext context) {
     return UiCard(
-      title: "UART Servo 控制",
-      minHeight: 520,
+      title: "Angle 控制",
+      minHeight: widget.compact ? 420 : 520,
       child: LayoutBuilder(
         builder: (context, constraints) {
           return ConstrainedBox(
@@ -69,12 +71,14 @@ class _ServoControlPanelState extends State<ServoControlPanel> {
                     const SizedBox(height: 8),
                     ...List.generate(servoCount, (i) {
                       return Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
+                        padding: EdgeInsets.only(
+                          bottom: widget.compact ? 8 : 12,
+                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              "CH${i + 1}  ${angles[i].toStringAsFixed(1)}°",
+                              "${i + 1}  ${angles[i].toStringAsFixed(2)}°",
                               style: const TextStyle(
                                 fontWeight: FontWeight.w600,
                               ),
@@ -93,9 +97,9 @@ class _ServoControlPanelState extends State<ServoControlPanel> {
                                   ),
                                 ),
                                 SizedBox(
-                                  width: 58,
+                                  width: widget.compact ? 48 : 58,
                                   child: Text(
-                                    angles[i].toStringAsFixed(0),
+                                    angles[i].toStringAsFixed(2),
                                     textAlign: TextAlign.right,
                                   ),
                                 ),
@@ -114,7 +118,7 @@ class _ServoControlPanelState extends State<ServoControlPanel> {
                           height: UiLayout.buttonHeight,
                           child: ElevatedButton(
                             onPressed: sendAngles,
-                            child: const Text("送出 set_angle"),
+                            child: const Text("送出 angle"),
                           ),
                         ),
                         SizedBox(

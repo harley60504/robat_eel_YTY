@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:network_info_plus/network_info_plus.dart';
 
 class WifiInfo {
@@ -12,6 +13,8 @@ class WifiInfo {
 
   /// ✅ 真正去跟手機讀 SSID（含 retry）
   static Future<String?> getCurrentSsid() async {
+    if (kIsWeb) return null;
+
     final info = NetworkInfo();
 
     for (int i = 0; i < 5; i++) {

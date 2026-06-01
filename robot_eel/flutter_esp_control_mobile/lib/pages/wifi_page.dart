@@ -4,10 +4,23 @@ import '../widgets/wifi_scan.dart';
 import '../ui/ui_layout.dart';
 
 class WiFiPage extends StatelessWidget {
-  const WiFiPage({super.key});
+  final bool compact;
+
+  const WiFiPage({super.key, this.compact = false});
 
   @override
   Widget build(BuildContext context) {
+    if (compact) {
+      return const Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          WiFiStatusCard(compact: true),
+          SizedBox(height: 10),
+          WiFiScanCard(compact: true),
+        ],
+      );
+    }
+
     final width = MediaQuery.of(context).size.width;
     final isMobile = width < UiLayout.mobileBreakpoint;
 

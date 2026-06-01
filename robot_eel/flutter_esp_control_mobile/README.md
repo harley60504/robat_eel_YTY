@@ -1,15 +1,16 @@
 # flutter_esp_control
 
-A new Flutter project.
+ESP32 robot eel control panel.
 
-## Getting Started
+## Run
 
-This project is a starting point for a Flutter application.
+Default development target is Windows:
 
-A few resources to get you started if this is your first Flutter project:
+```powershell
+flutter run -d windows
+```
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+The web target is not used for this app.
 
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,

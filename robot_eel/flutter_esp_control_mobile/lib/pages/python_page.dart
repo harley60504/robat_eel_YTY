@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import '../api/python_api.dart';
 import '../bridge/python_bridge.dart';
+import '../ui/ui_card.dart';
 
 class PythonPage extends StatefulWidget {
-  const PythonPage({super.key});
+  final bool compact;
+  final bool fillHeight;
+
+  const PythonPage({super.key, this.compact = false, this.fillHeight = false});
 
   @override
   State<PythonPage> createState() => _PythonPageState();
@@ -22,17 +26,13 @@ class _PythonPageState extends State<PythonPage> {
     setState(() => logText = "$s\n$logText");
   }
 
-  Future<void> onSync() async {
-    final pcHost = pcIpCtrl.text.trim();
-    log("sync ESP32 host -> Python ...");
-
-    final ok = await PythonBridge.syncEsp32HostToPython(pcHost: pcHost);
-    if (!mounted) return;
-    log("sync ok = $ok");
-  }
-
   Future<void> onStart() async {
     final pcHost = pcIpCtrl.text.trim();
+
+    log("sync ESP32 host -> Python ...");
+    final syncOk = await PythonBridge.syncEsp32HostToPython(pcHost: pcHost);
+    if (!mounted) return;
+    log("sync ok = $syncOk");
 
     log("start python...");
     final ok = await PythonApi.start(pcHost: pcHost);
@@ -77,63 +77,75 @@ class _PythonPageState extends State<PythonPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    final content = buildContent(context);
+
+    return UiCard(
+      title: "Python",
+      minHeight: widget.fillHeight ? 0 : (widget.compact ? 260 : 340),
+      fill: widget.fillHeight,
+      child: content,
+    );
+  }
+
+  Widget buildContent(BuildContext context) {
+    final logBox = Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        border: Border.all(color: Theme.of(context).dividerColor),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: SingleChildScrollView(
+        child: Text(logText.isEmpty ? "(no logs)" : logText),
+      ),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: widget.fillHeight ? MainAxisSize.max : MainAxisSize.min,
+      children: [
+        TextField(
+          controller: pcIpCtrl,
+          decoration: const InputDecoration(
+            border: OutlineInputBorder(),
+            hintText: "PC IP",
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
           children: [
-            const Text(
-              "Python Controller",
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: pcIpCtrl,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: "PC IP",
+            Expanded(
+              child: ElevatedButton(
+                onPressed: running ? null : onStart,
+                child: const FittedBox(child: Text("Start")),
               ),
             ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 12,
-              children: [
-                ElevatedButton(
-                  onPressed: onSync,
-                  child: const Text("Sync"),
-                ),
-                ElevatedButton(
-                  onPressed: running ? null : onStart,
-                  child: const Text("Start"),
-                ),
-                OutlinedButton(
-                  onPressed: running ? onStop : null,
-                  child: const Text("Stop"),
-                ),
-                OutlinedButton(
-                  onPressed: onMeasureToggle,
-                  child: Text(measuring ? "Measure OFF" : "Measure ON"),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            const Text("Log"),
-            Container(
-              width: double.infinity,
-              height: 180,
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.black12),
+            const SizedBox(width: 10),
+            Expanded(
+              child: OutlinedButton(
+                onPressed: running ? onStop : null,
+                child: const FittedBox(child: Text("Stop")),
               ),
-              child: SingleChildScrollView(
-                child: Text(logText.isEmpty ? "(no logs)" : logText),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: OutlinedButton(
+                onPressed: onMeasureToggle,
+                child: FittedBox(
+                  child: Text(measuring ? "Meas OFF" : "Meas ON"),
+                ),
               ),
             ),
           ],
         ),
-      ),
+        SizedBox(height: widget.compact ? 10 : 16),
+        const Text("Log"),
+        const SizedBox(height: 6),
+        if (widget.fillHeight)
+          Expanded(child: logBox)
+        else
+          SizedBox(height: widget.compact ? 120 : 180, child: logBox),
+      ],
     );
   }
 }

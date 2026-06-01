@@ -1,0 +1,48 @@
+{
+  "xml": "eel_tethered.xml",
+  "fy_weight": 0.02,
+  "dominance_weight": 10.0,
+  "max_fy_over_fx": 0.2,
+  "min_fx": 0.5,
+  "low_fx_weight": 3.0,
+  "warmup_seconds": 2.0,
+  "sweep_seconds": 8.0,
+  "verify_seconds": 15.0,
+  "best_source": "continuous",
+  "best": {
+    "start": 1,
+    "iteration": 5,
+    "frequency": 1.0,
+    "wavelength": 1.6275,
+    "ajoint": 0.45,
+    "score": 3.9344031035878504,
+    "fx_over_abs_fy": 617.8545695570731,
+    "abs_fy_over_fx": 0.0016185038506988448,
+    "mean_fx": 3.9345304646420045,
+    "mean_fy": -0.006368052707714999,
+    "abs_mean_fy": 0.006368052707714999,
+    "mean_abs_fy": 11.78581220805488,
+    "mean_force_mag": 14.564711711178257,
+    "peak_force_mag": 24.090865298717908,
+    "energy_proxy": 0.10125000000000042,
+    "verify_score": 3.9344033853964335,
+    "verify_fx_over_abs_fy": 617.8005082661974,
+    "verify_abs_fy_over_fx": 0.0016186454796005458,
+    "verify_mean_fx": 3.9345307576049366,
+    "verify_mean_fy": -0.0063686104251465415,
+    "verify_abs_mean_fy": 0.0063686104251465415,
+    "verify_mean_abs_fy": 11.785811901915565,
+    "verify_mean_force_mag": 14.564711456220353,
+    "verify_peak_force_mag": 24.090865298717908,
+    "verify_energy_proxy": 0.10124999999999804
+  },
+  "files": {
+    "coarse_csv": "outputs\\hopf_auto_freq100_cont\\coarse.csv",
+    "fine_csv": "outputs\\hopf_auto_freq100_cont\\fine.csv",
+    "continuous_csv": "outputs\\hopf_auto_freq100_cont\\continuous.csv"
+  },
+  "commands": {
+    "view": "python view_tethered_force.py --ajoint 0.45 --freq 1 --wavelength 1.6275",
+    "measure": "python measure_tethered_force.py --ajoint 0.45 --freq 1 --wavelength 1.6275"
+  }
+}

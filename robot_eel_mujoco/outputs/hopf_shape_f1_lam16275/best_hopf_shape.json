@@ -1,0 +1,48 @@
+{
+  "xml": "eel_tethered.xml",
+  "freq": 1.0,
+  "wavelength": 1.6275,
+  "ajoint": 0.45,
+  "fy_weight": 0.02,
+  "energy_weight": 0.02,
+  "best": {
+    "start": 1,
+    "iteration": 4,
+    "score": 4.661595265484587,
+    "amp_scale_1": 1.2400000000000002,
+    "amp_scale_2": 1.08,
+    "amp_scale_3": 1.0,
+    "amp_scale_4": 1.0,
+    "amp_scale_5": 1.0,
+    "amp_scale_6": 1.0,
+    "phase_lag_1": 0.6144393241167435,
+    "phase_lag_2": 0.6144393241167435,
+    "phase_lag_3": 0.6144393241167435,
+    "phase_lag_4": 0.6144393241167435,
+    "phase_lag_5": 0.6144393241167435,
+    "mean_fx": 4.66400058185927,
+    "mean_fy": -0.007135818734126815,
+    "abs_mean_fy": 0.007135818734126815,
+    "mean_abs_fy": 13.702281021800289,
+    "mean_force_mag": 17.193483815348237,
+    "peak_force_mag": 27.824437215714795,
+    "energy_proxy": 0.11312999999999918,
+    "fx_over_abs_fy": 653.6041280804741,
+    "verify_score": 4.661596807925564,
+    "verify_mean_fx": 4.664002185705356,
+    "verify_mean_fy": -0.0071388889896056755,
+    "verify_abs_mean_fy": 0.0071388889896056755,
+    "verify_mean_abs_fy": 13.702278971800592,
+    "verify_mean_force_mag": 17.193482046584577,
+    "verify_peak_force_mag": 27.824437215717197,
+    "verify_energy_proxy": 0.11312999999999918
+  },
+  "files": {
+    "csv": "outputs\\hopf_shape_f1_lam16275\\shape_search.csv"
+  },
+  "commands": {
+    "view_tethered": "python view_tethered_force.py --ajoint 0.45 --freq 1 --wavelength 1.6275 --amp-scales 1.24,1.08,1,1,1,1 --phase-lags 0.614439,0.614439,0.614439,0.614439,0.614439",
+    "measure_tethered": "python measure_tethered_force.py --ajoint 0.45 --freq 1 --wavelength 1.6275 --amp-scales 1.24,1.08,1,1,1,1 --phase-lags 0.614439,0.614439,0.614439,0.614439,0.614439",
+    "measure_free": "python measure_free_swim_speed.py --ajoint 0.45 --freq 1 --wavelength 1.6275 --amp-scales 1.24,1.08,1,1,1,1 --phase-lags 0.614439,0.614439,0.614439,0.614439,0.614439"
+  }
+}

@@ -1,0 +1,51 @@
+{
+   "checksum": "c91eaf330db95f1b07f5a4392c8747a7",
+   "roots": {
+      "bookmark_bar": {
+         "children": [ {
+            "date_added": "13357299481426748",
+            "date_last_used": "13412321174260013",
+            "guid": "ca7e438f-ff15-4e7c-8c8e-ca0792d25bdd",
+            "id": "6",
+            "name": "YouTube",
+            "show_icon": false,
+            "source": "sync",
+            "type": "url",
+            "url": "https://www.youtube.com/",
+            "visit_count": 51
+         } ],
+         "date_added": "13410945833957086",
+         "date_last_used": "0",
+         "date_modified": "13357299481426748",
+         "guid": "0bc5d13f-2cba-5d74-951f-3f233fe6c908",
+         "id": "1",
+         "name": "我的最愛列",
+         "source": "unknown",
+         "type": "folder"
+      },
+      "other": {
+         "children": [  ],
+         "date_added": "13410945833957086",
+         "date_last_used": "0",
+         "date_modified": "0",
+         "guid": "82b081ec-3dd3-529c-8475-ab6c344590dd",
+         "id": "2",
+         "name": "其他 [我的最愛]",
+         "source": "unknown",
+         "type": "folder"
+      },
+      "synced": {
+         "children": [  ],
+         "date_added": "13410945833957086",
+         "date_last_used": "0",
+         "date_modified": "0",
+         "guid": "4cf2e351-0e85-532b-bb37-df045d8f8d0f",
+         "id": "3",
+         "name": "行動裝置的 [我的最愛]",
+         "source": "unknown",
+         "type": "folder"
+      }
+   },
+   "sync_metadata": "CjEKDgiIgQISCNFL7pubAQAAEgAqGEVJcVQ3dTIzS3dNbllKM1loa2VkWFE9PUgDoAYMEo4BCAMSiQEKHG5qZ0R1ODhlQ3J2WHA4NnBEN2ZIR2NxRnA4OD0SJGQ2YzI3ZDVhLTgyMzQtNTQwMy1hMjQ5LTUzOTBiZDk2ZWRmMxgAIAAoADDHhLDi7DE4toiw4uwxQLaIsOLsMUoceXpOQjAxY241NEE3Y1JVMHVUKy9QZ21UdFVvPVoAZQAAAADCPgJgABKOAQgCEokBChxZY1NUb252RVNQd3FDczRMMmNyVmh2NjhMOTg9EiQyOWZiODNlYy1kZjcxLTVhOGItYmQzYS1mNGY0Zjg5Y2QwODcYACAAKAAwwoSw4uwxOIKIsOLsMUCCiLDi7DFKHG9QVmtod0JSYlY2NUtDV1IyK0lPTkhXb091OD1aAGUAAAAAwj4CYAASjgEIARKJAQoceXhKLzZmdmtlY3I3a3A1RVF6QjR0V0xwZGJFPRIkODAyMDRlMTItNDZjYi01YmMzLTkyZGMtNTRhMzM3NTkxNzgyGAAgACgAMMGEsOLsMTjnh7Di7DFA54ew4uwxShxhUkNXTGdoRjliNUlucUtJRHZ1Si9qdlFrRmM9WgBlAAAAAMI+AmAAEqwBCAYSpwEKHG1KVWNhUlU0SkJDRnh2YmRUQ2R0Zy83YWI1Zz0SJGNhN2U0MzhmLWZmMTUtNGU3Yy04YzhlLWNhMDc5MmQyNWJkZBgAIAAoADCb/7TfuTM42Nev+PAxQJv/tN+5M0occG82VWNTT2NWK282YnFSdXp3SzlLbGxoSXFjPVoeIhxVVG4vY2I3ZWdZSE1ScEh2MnNlak53UVh1b3c9ZUP4bYDCPgJgBTAAOAA=",
+   "version": 1
+}

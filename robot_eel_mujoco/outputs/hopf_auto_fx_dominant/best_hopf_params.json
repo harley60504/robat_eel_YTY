@@ -1,0 +1,40 @@
+{
+  "xml": "eel_tethered.xml",
+  "fy_weight": 0.05,
+  "dominance_weight": 3.0,
+  "max_fy_over_fx": 1.0,
+  "warmup_seconds": 1.0,
+  "sweep_seconds": 3.0,
+  "verify_seconds": 6.0,
+  "best": {
+    "frequency": 0.5,
+    "wavelength": 0.8,
+    "ajoint": 0.1,
+    "score": -0.31741352847788834,
+    "fx_over_abs_fy": -0.039867564546260364,
+    "abs_fy_over_fx": Infinity,
+    "mean_fx": -0.0040954843759806086,
+    "mean_fy": -8.405169990268747e-06,
+    "mean_abs_fy": 0.10272722757439597,
+    "mean_force_mag": 0.10393390686570506,
+    "peak_force_mag": 0.1406908234619668,
+    "energy_proxy": 0.00499999999994786,
+    "verify_score": -0.3174153704859891,
+    "verify_fx_over_abs_fy": -0.0399818006930681,
+    "verify_abs_fy_over_fx": Infinity,
+    "verify_mean_fx": -0.004107091529419588,
+    "verify_mean_fy": 0.0204720646858899,
+    "verify_mean_abs_fy": 0.10272402588739983,
+    "verify_mean_force_mag": 0.10393417345763069,
+    "verify_peak_force_mag": 0.1406908234619668,
+    "verify_energy_proxy": 0.004999999999979121
+  },
+  "files": {
+    "coarse_csv": "outputs\\hopf_auto_fx_dominant\\coarse.csv",
+    "fine_csv": "outputs\\hopf_auto_fx_dominant\\fine.csv"
+  },
+  "commands": {
+    "view": "python view_tethered_force.py --ajoint 0.1 --freq 0.5 --wavelength 0.8",
+    "measure": "python measure_tethered_force.py --ajoint 0.1 --freq 0.5 --wavelength 0.8"
+  }
+}

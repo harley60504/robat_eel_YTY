@@ -1,0 +1,414 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by Stephen Brawner (brawner@gmail.com) 
+     Commit Version: 1.6.0-4-g7f85cfe  Build Version: 1.6.7995.38578
+     For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
+<robot
+  name="eel_urdf">
+  <mujoco>
+    <compiler meshdir="../eel_urdf/meshes/"
+              balanceinertia="false"
+              discardvisual="false"
+              coordinate="local"/>
+    <option integrator="RK4" timestep="0.001"/>
+    <default>
+      <geom contype="1" conaffinity="1"/>
+      <joint damping="1.5" armature="0.05" stiffness="0.2"/>
+    </default>
+  </mujoco>
+  <contact>
+    <exclude body1="base_link" body2="servo1"/>
+    <exclude body1="servo1" body2="servo2"/>
+    <exclude body1="servo2" body2="servo3"/>
+    <exclude body1="servo3" body2="servo4"/>
+    <exclude body1="servo4" body2="servo5"/>
+    <exclude body1="servo5" body2="servo6"/>
+  </contact>
+  <link
+    name="base_link">
+    <inertial>
+      <origin
+        xyz="0.060736 2.9404E-16 -0.0003316"
+        rpy="0 0 0" />
+      <mass
+        value="0.08594" />
+      <inertia
+        ixx="4.4884E-05"
+        ixy="9.7342E-21"
+        ixz="-4.7953E-07"
+        iyy="0.00010101"
+        iyz="4.7279E-21"
+        izz="9.7427E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="base_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.79216 0.81961 0.93333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="base_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <link
+    name="servo1">
+    <inertial>
+      <origin
+        xyz="-0.012049 -9.537E-08 -0.025445"
+        rpy="0 0 0" />
+      <mass
+        value="0.11015" />
+      <inertia
+        ixx="3.4259E-05"
+        ixy="-6.1969E-10"
+        ixz="-1.0867E-07"
+        iyy="6.2761E-05"
+        iyz="-1.5471E-12"
+        izz="5.9923E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="servo1.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.79216 0.81961 0.93333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="servo1.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="servo1"
+    type="continuous">
+    <origin
+      xyz="-0.035 0 0.025433"
+      rpy="0 0 0" />
+    <parent
+      link="base_link" />
+    <child
+      link="servo1" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="0"
+      upper="0"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="servo2">
+    <inertial>
+      <origin
+        xyz="-0.012049 -9.537E-08 -0.025445"
+        rpy="0 0 0" />
+      <mass
+        value="0.11015" />
+      <inertia
+        ixx="3.4259E-05"
+        ixy="-6.1969E-10"
+        ixz="-1.0867E-07"
+        iyy="6.2761E-05"
+        iyz="-1.5471E-12"
+        izz="5.9923E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="servo2.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.79216 0.81961 0.93333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="servo2.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="servo2"
+    type="continuous">
+    <origin
+      xyz="-0.072 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="servo1" />
+    <child
+      link="servo2" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="0"
+      upper="0"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="servo3">
+    <inertial>
+      <origin
+        xyz="-0.012049 -9.537E-08 -0.025445"
+        rpy="0 0 0" />
+      <mass
+        value="0.11015" />
+      <inertia
+        ixx="3.4259E-05"
+        ixy="-6.1969E-10"
+        ixz="-1.0867E-07"
+        iyy="6.2761E-05"
+        iyz="-1.5471E-12"
+        izz="5.9923E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="servo3.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.79216 0.81961 0.93333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="servo3.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="servo3"
+    type="continuous">
+    <origin
+      xyz="-0.072 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="servo2" />
+    <child
+      link="servo3" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="0"
+      upper="0"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="servo4">
+    <inertial>
+      <origin
+        xyz="-0.0120487147742294 -9.53697419864633E-08 -0.0254453955715893"
+        rpy="0 0 0" />
+      <mass
+        value="0.110152499571834" />
+      <inertia
+        ixx="3.42586243719868E-05"
+        ixy="-6.1968780952349E-10"
+        ixz="-1.08668371449204E-07"
+        iyy="6.27609879607102E-05"
+        iyz="-1.54710052350768E-12"
+        izz="5.99228972528301E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="servo4.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="servo4.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="servo4"
+    type="continuous">
+    <origin
+      xyz="-0.072 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="servo3" />
+    <child
+      link="servo4" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="0"
+      upper="0"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="servo5">
+    <inertial>
+      <origin
+        xyz="-0.012049 -9.537E-08 -0.025445"
+        rpy="0 0 0" />
+      <mass
+        value="0.11015" />
+      <inertia
+        ixx="3.4259E-05"
+        ixy="-6.1969E-10"
+        ixz="-1.0867E-07"
+        iyy="6.2761E-05"
+        iyz="-1.5471E-12"
+        izz="5.9923E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="servo5.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.79216 0.81961 0.93333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="servo5.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="servo5"
+    type="continuous">
+    <origin
+      xyz="-0.072 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="servo4" />
+    <child
+      link="servo5" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="0"
+      upper="0"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="servo6">
+    <inertial>
+      <origin
+        xyz="-0.014138 1.4332E-05 -0.025449"
+        rpy="0 0 0" />
+      <mass
+        value="0.11461" />
+      <inertia
+        ixx="3.3039E-05"
+        ixy="-1.9391E-07"
+        ixz="-1.414E-07"
+        iyy="7.6484E-05"
+        iyz="-5.6905E-10"
+        izz="7.4549E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="servo6.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.79216 0.81961 0.93333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="servo6.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="servo6"
+    type="continuous">
+    <origin
+      xyz="-0.072 -5E-05 0"
+      rpy="0 0 0" />
+    <parent
+      link="servo5" />
+    <child
+      link="servo6" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="0"
+      upper="0"
+      effort="0"
+      velocity="0" />
+  </joint>
+</robot>

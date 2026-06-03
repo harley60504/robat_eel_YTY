@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import '../api/esp_http_api.dart';
+import '../ui/ui_card.dart';
 import 'wifi_bars.dart';
 
 class WiFiScanCard extends StatefulWidget {
-  const WiFiScanCard({super.key});
+  final bool compact;
+
+  const WiFiScanCard({super.key, this.compact = false});
 
   @override
   State<WiFiScanCard> createState() => _WiFiScanCardState();
@@ -86,51 +89,57 @@ class _WiFiScanCardState extends State<WiFiScanCard> {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return UiCard(
+      title: "選取 Wi-Fi",
+      minHeight: widget.compact ? 120 : 180,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              const Text("附近 Wi-Fi", style: TextStyle(fontSize: 20)),
-              const SizedBox(height: 8),
-              ElevatedButton(
+              const Spacer(),
+              IconButton(
+                tooltip: "掃描",
                 onPressed: scanning ? null : scan,
-                child: Text(scanning ? "掃描中…" : "掃描"),
+                icon: scanning
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.refresh),
               ),
-              const SizedBox(height: 8),
-              if (error.isNotEmpty)
-                Text("錯誤：$error", style: const TextStyle(color: Colors.red))
-              else if (aps.isEmpty)
-                const Text("尚未掃描")
-              else
-                ...aps.map((ap) {
-                  final apSsid = (ap['ssid'] ?? '').toString();
-                  final apRssi = (ap['rssi'] ?? 0) as int;
-
-                  return ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(
-                      apSsid,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    subtitle: Text("RSSI: $apRssi"),
-                    trailing: SizedBox(
-                      width: 80, // ✅ 固定右側寬度，視覺會更整齊
-                      child: Align(
-                        alignment: Alignment.centerRight,
-                        child: wifiBars(apRssi),
-                      ),
-                    ),
-                    onTap: () => connectDialog(apSsid),
-                  );
-                }),
             ],
           ),
-        ),
+          const SizedBox(height: 8),
+          if (error.isNotEmpty)
+            Text("錯誤：$error", style: const TextStyle(color: Colors.red))
+          else if (aps.isEmpty)
+            const Text("尚未掃描")
+          else
+            ...aps.map((ap) {
+              final apSsid = (ap['ssid'] ?? '').toString();
+              final apRssi = (ap['rssi'] ?? 0) as int;
+
+              return ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(
+                  apSsid,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: Text("RSSI: $apRssi"),
+                trailing: SizedBox(
+                  width: 80, // ✅ 固定右側寬度，視覺會更整齊
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: wifiBars(apRssi),
+                  ),
+                ),
+                onTap: () => connectDialog(apSsid),
+              );
+            }),
+        ],
       ),
     );
   }

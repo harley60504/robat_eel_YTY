@@ -5,7 +5,9 @@ import '../ui/ui_card.dart';
 import '../ui/ui_layout.dart';
 
 class MotionParam extends StatefulWidget {
-  const MotionParam({super.key});
+  final bool compact;
+
+  const MotionParam({super.key, this.compact = false});
 
   @override
   State<MotionParam> createState() => _MotionParamState();
@@ -16,6 +18,11 @@ class _MotionParamState extends State<MotionParam> {
   final ampCtrl = TextEditingController();
   final lamCtrl = TextEditingController();
   final lCtrl = TextEditingController();
+
+  double freq = double.nan;
+  double amp = double.nan;
+  double lambda = double.nan;
+  double length = double.nan;
 
   StreamSubscription? _sub;
 
@@ -38,6 +45,13 @@ class _MotionParamState extends State<MotionParam> {
 
   void _applyCtrlParams(Map? msg) {
     if (msg == null) return;
+
+    setState(() {
+      freq = _num(msg["frequency"]);
+      amp = _num(msg["Ajoint"]);
+      lambda = _num(msg["lambda"]);
+      length = _num(msg["L"]);
+    });
 
     // ✅ 如果使用者正在輸入，就不要更新文字框
     if (_editing) return;
@@ -65,6 +79,16 @@ class _MotionParamState extends State<MotionParam> {
     return n.toStringAsFixed(2);
   }
 
+  double _num(dynamic v) {
+    if (v is! num) return double.nan;
+    return v.toDouble();
+  }
+
+  String _status(double v, {String unit = ""}) {
+    if (v.isNaN) return "-";
+    return "${v.toStringAsFixed(2)}$unit";
+  }
+
   void setParam(String key, TextEditingController ctrl) {
     final v = double.tryParse(ctrl.text.trim());
     if (v == null) return;
@@ -89,42 +113,38 @@ class _MotionParamState extends State<MotionParam> {
         contentPadding: UiLayout.fieldPadding,
       );
 
-  Widget _setButton(VoidCallback onSet) {
-    return SizedBox(
-      height: UiLayout.buttonHeight,
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: onSet,
-        child: const Text("設定"),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return UiCard(
       title: "參數設定",
-      minHeight: 280,
+      minHeight: widget.compact ? 188 : 240,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           paramRow(
             label: "頻率 (Hz)",
+            value: _status(freq, unit: " Hz"),
             ctrl: freqCtrl,
             onSet: () => setParam("frequency", freqCtrl),
           ),
+          const SizedBox(height: 8),
           paramRow(
             label: "振幅 (°)",
+            value: _status(amp, unit: "°"),
             ctrl: ampCtrl,
             onSet: () => setParam("Ajoint", ampCtrl),
           ),
+          const SizedBox(height: 8),
           paramRow(
             label: "λ",
+            value: _status(lambda),
             ctrl: lamCtrl,
             onSet: () => setParam("lambda", lamCtrl),
           ),
+          const SizedBox(height: 8),
           paramRow(
             label: "L",
+            value: _status(length),
             ctrl: lCtrl,
             onSet: () => setParam("L", lCtrl),
           ),
@@ -135,55 +155,66 @@ class _MotionParamState extends State<MotionParam> {
 
   Widget paramRow({
     required String label,
+    required String value,
     required TextEditingController ctrl,
     required VoidCallback onSet,
   }) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 10),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final isNarrow = constraints.maxWidth < 420;
-
-          Widget field() => TextField(
-                controller: ctrl,
-                keyboardType: TextInputType.number,
-                onTap: () => setState(() => _editing = true),
-                onChanged: (_) => setState(() => _editing = true),
-                onSubmitted: (_) => onSet(),
-                decoration: _fieldDeco(),
-              );
-
-          if (isNarrow) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label),
-                const SizedBox(height: 6),
-                field(),
-                const SizedBox(height: 8),
-                _setButton(onSet),
-              ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        Widget field() => TextField(
+              controller: ctrl,
+              keyboardType: TextInputType.number,
+              onTap: () => setState(() => _editing = true),
+              onChanged: (_) => setState(() => _editing = true),
+              onSubmitted: (_) => onSet(),
+              decoration: _fieldDeco(),
             );
-          }
 
-          return Row(
-            children: [
-              SizedBox(width: 100, child: Text(label)),
-              const SizedBox(width: 10),
-              Expanded(child: field()),
-              const SizedBox(width: 10),
-              SizedBox(
-                width: 90,
-                height: UiLayout.buttonHeight,
-                child: ElevatedButton(
-                  onPressed: onSet,
-                  child: const Text("設定"),
-                ),
+        return Row(
+          children: [
+            SizedBox(
+              width: widget.compact ? 78 : 112,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(label),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    value,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
               ),
-            ],
-          );
-        },
-      ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(child: field()),
+            const SizedBox(width: 8),
+            SizedBox(
+              width: widget.compact ? 70 : 94,
+              height: UiLayout.buttonHeight,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  textStyle: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                onPressed: onSet,
+                child: const Text("設定", softWrap: false),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

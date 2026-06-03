@@ -4,7 +4,14 @@ import '../api/esp_api.dart';
 import '../ui/ui_card.dart';
 
 class CameraControlPanel extends StatefulWidget {
-  const CameraControlPanel({super.key});
+  final bool compact;
+  final bool embedded;
+
+  const CameraControlPanel({
+    super.key,
+    this.compact = false,
+    this.embedded = false,
+  });
 
   @override
   State<CameraControlPanel> createState() => _CameraControlPanelState();
@@ -72,39 +79,45 @@ class _CameraControlPanelState extends State<CameraControlPanel> {
 
   @override
   Widget build(BuildContext context) {
+    final content = SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("解析度"),
+          const SizedBox(height: 6),
+          DropdownButton<String>(
+            value: resolution,
+            isExpanded: true,
+            items: frameSizeMap.keys
+                .map((k) => DropdownMenuItem(value: k, child: Text(k)))
+                .toList(),
+            onChanged: (v) {
+              if (v == null) return;
+              applyResolution(v);
+            },
+          ),
+          const SizedBox(height: 16),
+          Text("JPEG Quality: ${quality.toInt()}"),
+          Slider(
+            value: quality,
+            min: 5,
+            max: 60,
+            divisions: 55,
+            label: quality.toInt().toString(),
+            onChanged: applyQuality,
+          ),
+        ],
+      ),
+    );
+
+    if (widget.embedded) {
+      return content;
+    }
+
     return UiCard(
       title: "相機控制",
-      minHeight: 220,
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text("解析度"),
-            const SizedBox(height: 6),
-            DropdownButton<String>(
-              value: resolution,
-              isExpanded: true,
-              items: frameSizeMap.keys
-                  .map((k) => DropdownMenuItem(value: k, child: Text(k)))
-                  .toList(),
-              onChanged: (v) {
-                if (v == null) return;
-                applyResolution(v);
-              },
-            ),
-            const SizedBox(height: 16),
-            Text("JPEG Quality: ${quality.toInt()}"),
-            Slider(
-              value: quality,
-              min: 5,
-              max: 60,
-              divisions: 55,
-              label: quality.toInt().toString(),
-              onChanged: applyQuality,
-            ),
-          ],
-        ),
-      ),
+      minHeight: widget.compact ? 150 : 220,
+      child: content,
     );
   }
 }

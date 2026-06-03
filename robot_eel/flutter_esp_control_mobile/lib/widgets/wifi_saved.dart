@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../api/esp_http_api.dart';
 import '../net/host_resolver.dart';
+import '../ui/ui_card.dart';
 
 class WiFiSavedCard extends StatefulWidget {
   const WiFiSavedCard({super.key});
@@ -56,41 +57,32 @@ class _WiFiSavedCardState extends State<WiFiSavedCard> {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text("已儲存 Wi-Fi", style: TextStyle(fontSize: 20)),
-              const SizedBox(height: 8),
+    return UiCard(
+      title: "已儲存 Wi-Fi",
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ✅ 顯示 ESP32 目前狀態 + IP（方便你確認存 IP 有沒有成功）
+          Text("ESP32 連線狀態：${connected ? "已連線" : "未連線"}"),
+          SelectableText("ESP32 SSID：$currentSsid"),
+          SelectableText("ESP32 STA IP：$currentIp"),
 
-              // ✅ 顯示 ESP32 目前狀態 + IP（方便你確認存 IP 有沒有成功）
-              Text("ESP32 連線狀態：${connected ? "已連線" : "未連線"}"),
-              SelectableText("ESP32 SSID：$currentSsid"),
-              SelectableText("ESP32 STA IP：$currentIp"),
+          const SizedBox(height: 12),
 
-              const SizedBox(height: 12),
+          if (loading)
+            const Text("讀取中…")
+          else if (error.isNotEmpty)
+            Text("錯誤：$error", style: const TextStyle(color: Colors.red))
+          else if (saved.isEmpty)
+            const Text("尚未儲存")
+          else
+            ...saved.map(
+              (s) => ListTile(contentPadding: EdgeInsets.zero, title: Text(s)),
+            ),
 
-              if (loading)
-                const Text("讀取中…")
-              else if (error.isNotEmpty)
-                Text("錯誤：$error", style: const TextStyle(color: Colors.red))
-              else if (saved.isEmpty)
-                const Text("尚未儲存")
-              else
-                ...saved.map(
-                  (s) =>
-                      ListTile(contentPadding: EdgeInsets.zero, title: Text(s)),
-                ),
-
-              const SizedBox(height: 8),
-              ElevatedButton(onPressed: refresh, child: const Text("重新讀取")),
-            ],
-          ),
-        ),
+          const SizedBox(height: 8),
+          ElevatedButton(onPressed: refresh, child: const Text("重新讀取")),
+        ],
       ),
     );
   }

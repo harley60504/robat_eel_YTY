@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import '../api/esp_http_api.dart';
 import '../net/host_resolver.dart';
 import '../net/wifi_info.dart';
+import '../ui/ui_card.dart';
 
 class WiFiStatusCard extends StatefulWidget {
-  const WiFiStatusCard({super.key});
+  final bool compact;
+
+  const WiFiStatusCard({super.key, this.compact = false});
 
   @override
   State<WiFiStatusCard> createState() => _WiFiStatusCardState();
@@ -80,68 +83,84 @@ class _WiFiStatusCardState extends State<WiFiStatusCard> {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text("Wi-Fi 狀態總覽", style: TextStyle(fontSize: 20)),
-              const SizedBox(height: 8),
-
-              // ✅ 手機 SSID 顯示（直接顯示 bootSsid → refresh 後更新）
-              Text(
-                "目前 Wi-Fi：$phoneSsid",
-                style: TextStyle(
-                  color: phoneSsidOk ? Colors.black : Colors.orange,
-                ),
+    return UiCard(
+      title: widget.compact ? "目前連線" : "Wi-Fi 狀態總覽",
+      minHeight: widget.compact ? 92 : 180,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ✅ 手機 SSID 顯示（直接顯示 bootSsid → refresh 後更新）
+          if (!widget.compact)
+            Text(
+              "目前 Wi-Fi：$phoneSsid",
+              style: TextStyle(
+                color: phoneSsidOk ? Colors.white : Colors.orange,
               ),
+            ),
 
-              const SizedBox(height: 8),
+          if (!widget.compact) const SizedBox(height: 8),
 
-              if (loading)
-                const Text("讀取中…")
-              else if (error.isNotEmpty)
-                Text("錯誤：$error", style: const TextStyle(color: Colors.red))
-              else ...[
-                // ===== Current =====
-                Text(
-                  "ESP32 連線狀態：${connected ? "已連線" : "未連線"}",
-                  style: TextStyle(
-                    color: connected ? Colors.black : Colors.red,
-                  ),
-                ),
-                SelectableText("ESP32 SSID：$ssid"),
-                SelectableText("ESP32 IP：$ip"),
-                Text("ESP32 RSSI：$rssi dBm"),
-
-                const Divider(height: 24),
-
-                // ===== Saved =====
-                const Text("已儲存 Wi-Fi", style: TextStyle(fontSize: 16)),
-                const SizedBox(height: 8),
-
-                if (saved.isEmpty)
-                  const Text("尚未儲存")
-                else
-                  ...saved.map(
-                    (s) => ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(s),
-                    ),
-                  ),
-              ],
-
-              const SizedBox(height: 8),
-              ElevatedButton(
+          if (loading)
+            const Text("讀取中…")
+          else if (error.isNotEmpty)
+            Text("錯誤：$error", style: const TextStyle(color: Colors.red))
+          else if (widget.compact)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: CircleAvatar(
+                backgroundColor:
+                    connected ? Colors.green.shade700 : Colors.grey,
+                child: const Icon(Icons.wifi, color: Colors.white),
+              ),
+              title: Text(
+                connected ? ssid : "未連線",
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: Text(connected ? "$ip · $rssi dBm" : phoneSsid),
+              trailing: IconButton(
+                tooltip: "重新讀取",
                 onPressed: refresh,
-                child: const Text("重新讀取"),
+                icon: const Icon(Icons.refresh),
               ),
-            ],
-          ),
-        ),
+            )
+          else ...[
+            // ===== Current =====
+            Text(
+              "ESP32 連線狀態：${connected ? "已連線" : "未連線"}",
+              style: TextStyle(
+                color: connected ? Colors.white : Colors.red,
+              ),
+            ),
+            SelectableText("ESP32 SSID：$ssid"),
+            SelectableText("ESP32 IP：$ip"),
+            Text("ESP32 RSSI：$rssi dBm"),
+
+            const Divider(height: 24),
+
+            // ===== Saved =====
+            const Text("已儲存 Wi-Fi", style: TextStyle(fontSize: 16)),
+            const SizedBox(height: 8),
+
+            if (saved.isEmpty)
+              const Text("尚未儲存")
+            else
+              ...saved.map(
+                (s) => ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(s),
+                ),
+              ),
+          ],
+
+          if (!widget.compact) ...[
+            const SizedBox(height: 8),
+            ElevatedButton(
+              onPressed: refresh,
+              child: const Text("重新讀取"),
+            ),
+          ],
+        ],
       ),
     );
   }

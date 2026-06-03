@@ -27,10 +27,17 @@ float angleDeg[bodyNum];
 // ==========================
 //  Control Parameters
 // ==========================
-float Ajoint       = 20.0f;
-float frequency    = 0.7f;
-float lambda       = 3.0f;
-float L            = 0.85f;
+// Match the current MuJoCo straight-swim defaults:
+// ajoint=0.45 rad, freq=1.0 Hz, wavelength=1.6275,
+// amp_scales=[1.24, 1.08, 1.0, 1.05, 1.1, 1.2],
+// phase_lags=[0.614439 x 5], joint_bias=[0 x 6].
+float Ajoint       = 25.7831f;  // deg, equivalent to 0.45 rad
+float frequency    = 1.0f;
+float lambda       = 1.6275f;
+float L            = 1.0f;
+float ampScales[bodyNum] = {1.24f, 1.08f, 1.0f, 1.05f, 1.1f, 1.2f};
+float phaseLags[bodyNum - 1] = {0.614439f, 0.614439f, 0.614439f, 0.614439f, 0.614439f};
+float jointBiasDeg[bodyNum] = {0, 0, 0, 0, 0, 0};
 
 bool  isPaused     = false;
 int   controlMode  = 2;

@@ -3,6 +3,7 @@
 #include "config.h"
 #include "utils.h"
 #include "logging.h"
+#include "cpg.h"
 #include "ServoStatusUART.h"
 
 // ✅ 新增：UART Angle Packet
@@ -37,7 +38,9 @@ void servoTask(void *pv)
           {
             float outDeg =
               Ajoint *
-              sinf(2 * PI * frequency * t - j / fmaxf(lambda * L, 1e-6f));
+              ampScales[j] *
+              sinf(2 * PI * frequency * t + getPhaseOffset(j)) +
+              jointBiasDeg[j];
 
             targetDeg = servoDefaultAngles[j] + outDeg;
           }

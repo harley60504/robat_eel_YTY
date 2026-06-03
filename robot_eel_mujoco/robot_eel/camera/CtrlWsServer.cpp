@@ -13,10 +13,10 @@ namespace {
 WebSocketsServer* g_ws = nullptr;
 ControlPacket g_pkt = {
     CONTROL_PACKET_HEADER,
-    20.0f,
-    0.7f,
-    3.0f,
-    0.85f,
+    25.7831f,
+    1.0f,
+    1.6275f,
+    1.0f,
     false,
     2,
     false,

@@ -41,7 +41,7 @@ class PythonProcessLauncher {
               '--host',
               '127.0.0.1',
               '--port',
-              '8000',
+              '8765',
             ]),
             const _PythonCommand('py', [
               '-3',
@@ -51,7 +51,7 @@ class PythonProcessLauncher {
               '--host',
               '127.0.0.1',
               '--port',
-              '8000',
+              '8765',
             ]),
           ]
         : <_PythonCommand>[
@@ -62,7 +62,7 @@ class PythonProcessLauncher {
               '--host',
               '127.0.0.1',
               '--port',
-              '8000',
+              '8765',
             ]),
             const _PythonCommand('python', [
               '-m',
@@ -71,7 +71,7 @@ class PythonProcessLauncher {
               '--host',
               '127.0.0.1',
               '--port',
-              '8000',
+              '8765',
             ]),
           ];
 

@@ -1,3 +1,3 @@
 #pragma once
 
-void initCamera();
+bool initCamera();

@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class PythonApi {
-  static const int port = 8000;
+  static const int port = 8765;
 
   static Uri _u(String host, String path) =>
       Uri.parse("http://$host:$port$path");

@@ -9,17 +9,29 @@ inline float wrap_pi(float x) {
   return x;
 }
 
+inline float getPhaseOffset(int j) {
+  float offset = 0.0f;
+  for (int i = 0; i < j && i < bodyNum - 1; i++) {
+    offset -= phaseLags[i];
+  }
+  return offset;
+}
+
+inline float getNeighborDesiredDelta(int leftJoint, int rightJoint) {
+  return getPhaseOffset(leftJoint) - getPhaseOffset(rightJoint);
+}
+
 inline void initCPG() {
   for (int j = 0; j < bodyNum; j++) {
     cpg[j].r = 0.25f;
-    cpg[j].theta = -j / fmaxf(lambda * L, 1e-6f);
+    cpg[j].theta = getPhaseOffset(j);
     cpg[j].alpha = 4.0f;
-    cpg[j].mu = 1.0f;
+    cpg[j].mu = ampScales[j] * ampScales[j];
   }
 }
 
 inline float getCPGOutput(int j) {
-  return Ajoint * cpg[j].r * cosf(cpg[j].theta);
+  return Ajoint * cpg[j].r * cosf(cpg[j].theta) + jointBiasDeg[j];
 }
 
 
@@ -29,6 +41,7 @@ inline float getTargetDelta() { return 1.0f / getLambdaInput(); }
 inline void updateCPG(float t, float dt, int j, float fb_phase, float fb_amp) {
   HopfOscillator &o = cpg[j];
   float omega = 2.0f * M_PI * frequency;
+  o.mu = ampScales[j] * ampScales[j];
   float dr = o.alpha * (o.mu - o.r * o.r) * o.r;
   float dtheta = omega;
 
@@ -36,20 +49,19 @@ inline void updateCPG(float t, float dt, int j, float fb_phase, float fb_amp) {
   const float K_anchor   = 0.10f;
   const float k_fb_phase = 0.8f;
   const float k_fb_amp   = 0.25f;
-  const float target_delta = getTargetDelta();
 
   if (j - 1 >= 0) {
-    float desiredL = +target_delta;
+    float desiredL = getNeighborDesiredDelta(j - 1, j);
     float errL = wrap_pi((cpg[j-1].theta - o.theta) - desiredL);
     dtheta += K_couple * sinf(errL);
   }
   if (j + 1 < bodyNum) {
-    float desiredR = -target_delta;
+    float desiredR = getNeighborDesiredDelta(j + 1, j);
     float errR = wrap_pi((cpg[j+1].theta - o.theta) - desiredR);
     dtheta += K_couple * sinf(errR);
   }
 
-  float th_ref = omega * t - j / fmaxf(getLambdaInput(), 1e-6f);
+  float th_ref = omega * t + getPhaseOffset(j);
   float e_ref = wrap_pi(th_ref - o.theta);
   dtheta += K_anchor * sinf(e_ref);
 

@@ -4,7 +4,7 @@
 #include "config.h"
 #include "camera_pins.h"
 
-void initCamera()
+bool initCamera()
 {
     camera_config_t config = {};
 
@@ -43,8 +43,9 @@ void initCamera()
 
     if (err != ESP_OK) {
         Serial.printf("Camera init failed 0x%x\n", err);
-        while(1) delay(1000);
+        return false;
     }
 
     Serial.println("Camera initialized OK");
+    return true;
 }

@@ -60,7 +60,7 @@ GAIT_PRESETS = {
         body_length=BODY_LENGTH,
         amp_scales=RL_VXHARD_AMP_SCALES,
         phase_lags=RL_VXHARD_PHASE_LAGS,
-        joint_bias_deg=TURN_SOFT_BIAS_DEG,
+        joint_bias_deg=tuple(-value for value in TURN_SOFT_BIAS_DEG),
     ),
     "left_spin_rl": GaitPreset(
         key="left_spin_rl",
@@ -71,7 +71,7 @@ GAIT_PRESETS = {
         body_length=BODY_LENGTH,
         amp_scales=RL_VXHARD_AMP_SCALES,
         phase_lags=RL_VXHARD_PHASE_LAGS,
-        joint_bias_deg=TURN_STRONG_BIAS_DEG,
+        joint_bias_deg=tuple(-value for value in TURN_STRONG_BIAS_DEG),
     ),
     "right_turn_rl": GaitPreset(
         key="right_turn_rl",
@@ -82,7 +82,7 @@ GAIT_PRESETS = {
         body_length=BODY_LENGTH,
         amp_scales=RL_VXHARD_AMP_SCALES,
         phase_lags=RL_VXHARD_PHASE_LAGS,
-        joint_bias_deg=tuple(-value for value in TURN_SOFT_BIAS_DEG),
+        joint_bias_deg=TURN_SOFT_BIAS_DEG,
     ),
     "right_spin_rl": GaitPreset(
         key="right_spin_rl",
@@ -93,7 +93,7 @@ GAIT_PRESETS = {
         body_length=BODY_LENGTH,
         amp_scales=RL_VXHARD_AMP_SCALES,
         phase_lags=RL_VXHARD_PHASE_LAGS,
-        joint_bias_deg=tuple(-value for value in TURN_STRONG_BIAS_DEG),
+        joint_bias_deg=TURN_STRONG_BIAS_DEG,
     ),
 }
 

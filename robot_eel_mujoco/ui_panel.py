@@ -282,10 +282,10 @@ class ControlPanel:
         self._set_bias(v)
 
     def turn_left(self):
-        self._set_bias(-self.bias_preset)
+        self._set_bias(+self.bias_preset)
 
     def turn_right(self):
-        self._set_bias(+self.bias_preset)
+        self._set_bias(-self.bias_preset)
 
     def turn_straight(self):
         self._set_bias(0.0)

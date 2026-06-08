@@ -66,6 +66,7 @@ def main():
     print(f"  file={args.gait}")
     print(f"  ajoint={ajoint_deg:.3f} deg ({cpg_params.ajoint:.3f} rad), freq={cpg_params.frequency}, wavelength={cpg_params.wavelength}")
     print("  joint_bias=", ", ".join(f"{value:.3f}" for value in cpg_params.joint_bias or ()))
+    print("  MuJoCo adapter: ctrl = -CPG_output (mirror joint direction only)")
 
     def reset_to_start():
         mujoco.mj_resetData(model, data)
@@ -80,7 +81,8 @@ def main():
             viewer.cam.azimuth = 0
 
         while viewer.is_running():
-            targets = cpg.step(data.time, model.opt.timestep, cpg_params)
+            raw_targets = cpg.step(data.time, model.opt.timestep, cpg_params)
+            targets = -raw_targets
             data.ctrl[0:6] = np.clip(targets, -1.2, 1.2)
             mujoco.mj_step(model, data)
             base_pos = data.xpos[base_body_id]

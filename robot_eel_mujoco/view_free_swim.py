@@ -7,7 +7,7 @@ import mujoco
 import mujoco.viewer
 import numpy as np
 
-from hopf_cpg import HopfCPG, HopfCPGParams, amp_scales_to_mu_scales
+from hopf_cpg import DEFAULT_AJOINT_DEG, HopfCPG, HopfCPGParams, amp_scales_to_mu_scales, degrees_to_radians
 
 
 def parse_float_list(value: str, expected_len: int, name: str) -> tuple[float, ...]:
@@ -20,7 +20,7 @@ def parse_float_list(value: str, expected_len: int, name: str) -> tuple[float, .
 def parse_args():
     parser = argparse.ArgumentParser(description="View the untethered eel swimming freely.")
     parser.add_argument("--xml", default="eel.xml")
-    parser.add_argument("--ajoint", "--amp", dest="ajoint", type=float, default=0.45)
+    parser.add_argument("--ajoint", "--amp", dest="ajoint", type=float, default=DEFAULT_AJOINT_DEG, help="Base joint angle amplitude in degrees.")
     parser.add_argument("--freq", type=float, default=1.0)
     parser.add_argument("--wavelength", type=float, default=1.5)
     parser.add_argument(
@@ -53,10 +53,11 @@ def main():
     base_body_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, "base_link")
 
     cpg = HopfCPG(num_joints=6)
+    ajoint_rad = degrees_to_radians(args.ajoint)
     cpg_params = HopfCPGParams(
         frequency=args.freq,
         wavelength=args.wavelength,
-        ajoint=args.ajoint,
+        ajoint=ajoint_rad,
         mu_scales=amp_scales_to_mu_scales(args.amp_scales),
         phase_lags=args.phase_lags,
         joint_bias=args.joint_bias,

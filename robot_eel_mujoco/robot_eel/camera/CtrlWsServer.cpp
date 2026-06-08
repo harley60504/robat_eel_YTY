@@ -7,16 +7,20 @@
 #include "wifi_manager.h"
 #include "CtrlUartBridge.h"
 #include "config.h"
+#include "servo_csv_log.h"
 
 namespace {
 
 WebSocketsServer* g_ws = nullptr;
 ControlPacket g_pkt = {
     CONTROL_PACKET_HEADER,
-    25.7831f,
+    15.0f,
     1.0f,
     1.6275f,
     1.0f,
+    {1.24f, 1.08f, 1.0f, 1.05f, 1.1f, 1.2f},
+    {0.614439f, 0.614439f, 0.614439f, 0.614439f, 0.614439f},
+    {0, 0, 0, 0, 0, 0},
     false,
     2,
     false,
@@ -82,7 +86,7 @@ void CtrlWsServer::tick()
     if (now - lastSnapshot < SNAPSHOT_INTERVAL_MS) return;
     lastSnapshot = now;
 
-    StaticJsonDocument<256> doc;
+    StaticJsonDocument<1536> doc;
     doc["type"]      = "ctrl_params";
     doc["Ajoint"]    = g_pkt.Ajoint;
     doc["frequency"] = g_pkt.frequency;
@@ -91,6 +95,16 @@ void CtrlWsServer::tick()
     doc["paused"]    = g_pkt.isPaused;
     doc["mode"]      = g_pkt.controlMode;
     doc["feedback"]  = g_pkt.feedbackGain;
+    auto amps = doc.createNestedArray("ampScales");
+    auto phases = doc.createNestedArray("phaseLags");
+    auto biases = doc.createNestedArray("jointBiasDeg");
+    for (int i = 0; i < bodyNum; i++) {
+        amps.add(g_pkt.ampScales[i]);
+        biases.add(g_pkt.jointBiasDeg[i]);
+    }
+    for (int i = 0; i < bodyNum - 1; i++) {
+        phases.add(g_pkt.phaseLags[i]);
+    }
 
     String out;
     serializeJson(doc, out);
@@ -108,6 +122,7 @@ void CtrlWsServer::begin(WebSocketsServer &ws)
     CtrlUartBridge::onServoStatus =
         [](const ServoStatus &s)
         {
+            appendServoCsvLog(s);
             CtrlWsServer::broadcastServoStatus(
                 s.count,
                 s.seq,
@@ -130,7 +145,7 @@ void CtrlWsServer::begin(WebSocketsServer &ws)
     {
         if (type != WStype_TEXT) return;
 
-        StaticJsonDocument<512> doc;
+        StaticJsonDocument<2048> doc;
         if (deserializeJson(doc, payload, len)) return;
 
         const char* cmd = doc["cmd"] | "";
@@ -145,6 +160,24 @@ void CtrlWsServer::begin(WebSocketsServer &ws)
             if (doc.containsKey("paused"))     g_pkt.isPaused     = doc["paused"];
             if (doc.containsKey("mode"))       g_pkt.controlMode  = doc["mode"];
             if (doc.containsKey("feedback"))   g_pkt.feedbackGain = doc["feedback"];
+            if (doc["ampScales"].is<JsonArray>()) {
+                JsonArray arr = doc["ampScales"].as<JsonArray>();
+                for (int i = 0; i < bodyNum && i < arr.size(); i++) {
+                    g_pkt.ampScales[i] = arr[i].as<float>();
+                }
+            }
+            if (doc["phaseLags"].is<JsonArray>()) {
+                JsonArray arr = doc["phaseLags"].as<JsonArray>();
+                for (int i = 0; i < bodyNum - 1 && i < arr.size(); i++) {
+                    g_pkt.phaseLags[i] = arr[i].as<float>();
+                }
+            }
+            if (doc["jointBiasDeg"].is<JsonArray>()) {
+                JsonArray arr = doc["jointBiasDeg"].as<JsonArray>();
+                for (int i = 0; i < bodyNum && i < arr.size(); i++) {
+                    g_pkt.jointBiasDeg[i] = arr[i].as<float>();
+                }
+            }
 
             CtrlUartBridge::sendCtrlParams(g_pkt);
             return;

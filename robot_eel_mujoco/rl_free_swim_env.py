@@ -7,7 +7,7 @@ from typing import Any
 import mujoco
 import numpy as np
 
-from hopf_cpg import HopfCPG, HopfCPGParams, amp_scales_to_mu_scales
+from hopf_cpg import DEFAULT_AJOINT_DEG, HopfCPG, HopfCPGParams, amp_scales_to_mu_scales, degrees_to_radians
 
 try:
     import gymnasium as gym
@@ -25,7 +25,7 @@ class FreeSwimConfig:
     control_dt: float = 0.02
     fixed_frequency: float = 1.0
     fixed_wavelength: float = 1.6275
-    fixed_ajoint: float = 0.45
+    fixed_ajoint: float = degrees_to_radians(DEFAULT_AJOINT_DEG)
     normalized_actions: bool = True
     amp_scale_lows: tuple[float, ...] = (1.10, 0.95, 0.90, 0.95, 1.00, 1.05)
     amp_scale_highs: tuple[float, ...] = (1.35, 1.20, 1.10, 1.20, 1.30, 1.40)

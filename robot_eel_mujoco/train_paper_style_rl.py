@@ -6,6 +6,7 @@ from pathlib import Path
 from stable_baselines3 import PPO
 from stable_baselines3.common.monitor import Monitor
 
+from hopf_cpg import DEFAULT_AJOINT_DEG, degrees_to_radians
 from rl_tethered_env import EelTetheredRLEnv, TetheredConfig
 
 
@@ -26,7 +27,7 @@ def parse_args():
     parser.add_argument("--target-metric", choices=("fx", "resultant"), default="fx")
     parser.add_argument("--freq", type=float, default=1.0)
     parser.add_argument("--wavelength", type=float, default=1.6275)
-    parser.add_argument("--ajoint", type=float, default=0.45)
+    parser.add_argument("--ajoint", type=float, default=DEFAULT_AJOINT_DEG, help="Base joint angle amplitude in degrees.")
     parser.add_argument("--episode-seconds", type=float, default=4.0)
     parser.add_argument("--warmup-seconds", type=float, default=1.0)
     parser.add_argument("--lateral-force-weight", type=float, default=0.05)
@@ -63,7 +64,7 @@ def main():
     cfg = TetheredConfig(
         fixed_frequency=args.freq,
         fixed_wavelength=args.wavelength,
-        fixed_ajoint=args.ajoint,
+        fixed_ajoint=degrees_to_radians(args.ajoint),
         per_joint_action=True,
         reward_mode="target_force",
         target_force=args.target_force,

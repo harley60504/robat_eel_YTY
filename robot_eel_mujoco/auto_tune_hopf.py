@@ -8,6 +8,7 @@ from pathlib import Path
 import mujoco
 import numpy as np
 
+from hopf_cpg import DEFAULT_AJOINT_DEG
 from sweep_hopf_params import measure_case
 
 
@@ -17,7 +18,7 @@ def parse_args():
     )
     parser.add_argument("--xml", default="eel_tethered.xml")
     parser.add_argument("--output-dir", type=Path, default=Path("outputs/hopf_auto"))
-    parser.add_argument("--ajoint", type=float, default=0.45)
+    parser.add_argument("--ajoint", type=float, default=DEFAULT_AJOINT_DEG, help="Base joint angle amplitude in degrees.")
     parser.add_argument("--ajoint-min", type=float, default=None)
     parser.add_argument("--ajoint-max", type=float, default=None)
     parser.add_argument("--ajoint-count", type=int, default=1)
@@ -48,7 +49,7 @@ def parse_args():
     parser.add_argument("--optimize-min-step", type=float, default=0.001)
     parser.add_argument("--optimize-freq-step", type=float, default=0.02)
     parser.add_argument("--optimize-wavelength-step", type=float, default=0.04)
-    parser.add_argument("--optimize-ajoint-step", type=float, default=0.02)
+    parser.add_argument("--optimize-ajoint-step", type=float, default=1.0)
     return parser.parse_args()
 
 

@@ -6,6 +6,7 @@ from pathlib import Path
 from stable_baselines3 import PPO
 from stable_baselines3.common.monitor import Monitor
 
+from hopf_cpg import degrees_to_radians
 from rl_free_swim_env import EelFreeSwimRLEnv, FreeSwimConfig
 
 
@@ -25,7 +26,7 @@ def parse_args():
     parser.add_argument("--warmup-seconds", type=float, default=None)
     parser.add_argument("--freq", type=float, default=None)
     parser.add_argument("--wavelength", type=float, default=None)
-    parser.add_argument("--ajoint", type=float, default=None)
+    parser.add_argument("--ajoint", type=float, default=None, help="Base joint angle amplitude in degrees.")
     parser.add_argument("--amp-scale-lows", type=lambda value: parse_float_list(value, 6, "amp-scale-lows"), default=None)
     parser.add_argument("--amp-scale-highs", type=lambda value: parse_float_list(value, 6, "amp-scale-highs"), default=None)
     parser.add_argument("--phase-lag-lows", type=lambda value: parse_float_list(value, 5, "phase-lag-lows"), default=None)
@@ -50,7 +51,7 @@ def config_from_args(args) -> FreeSwimConfig:
     if args.wavelength is not None:
         cfg.fixed_wavelength = args.wavelength
     if args.ajoint is not None:
-        cfg.fixed_ajoint = args.ajoint
+        cfg.fixed_ajoint = degrees_to_radians(args.ajoint)
     if args.amp_scale_lows is not None:
         cfg.amp_scale_lows = args.amp_scale_lows
     if args.amp_scale_highs is not None:

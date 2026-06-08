@@ -24,7 +24,7 @@
   int servoPins[bodyNum] = {2, 13, 12, 11, 10, 9};
   float servoDefaultAngles[bodyNum] = {100, 102, 95, 90, 90, 90};
   float angle[bodyNum];
-  float Ajoint = 30, frequency = 0.7, LAMBDAinput = 0.4;
+  float Ajoint = 15, frequency = 0.7, LAMBDAinput = 0.4;
   bool isPaused = false;
 
   // WebServer
@@ -335,7 +335,7 @@
     server.on("/decrease_threshold", []() { moveThreshold = max(moveThreshold - 0.05f, 0.05f); server.send(200, "text/plain", "ok"); });
     server.on("/toggle_pause", []() { isPaused = !isPaused; server.send(200, "text/plain", "ok"); });
     server.on("/reset_all", []() {
-      frequency = 0.7; Ajoint = 30; LAMBDAinput = 0.4; isPaused = false;
+      frequency = 0.7; Ajoint = 15; LAMBDAinput = 0.4; isPaused = false;
       moveThreshold = 0.4;
       server.send(200, "text/plain", "ok");
     });

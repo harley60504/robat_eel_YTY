@@ -7,7 +7,7 @@ from pathlib import Path
 import mujoco
 import numpy as np
 
-from hopf_cpg import HopfCPG, HopfCPGParams, amp_scales_to_mu_scales
+from hopf_cpg import DEFAULT_AJOINT_DEG, HopfCPG, HopfCPGParams, amp_scales_to_mu_scales, degrees_to_radians
 
 
 def parse_float_list(value: str, expected_len: int, name: str) -> tuple[float, ...]:
@@ -22,7 +22,7 @@ def parse_args():
     parser.add_argument("--xml", default="eel_tethered.xml")
     parser.add_argument("--seconds", type=float, default=6.0)
     parser.add_argument("--skip-seconds", type=float, default=1.0)
-    parser.add_argument("--ajoint", "--amp", dest="ajoint", type=float, default=0.45)
+    parser.add_argument("--ajoint", "--amp", dest="ajoint", type=float, default=DEFAULT_AJOINT_DEG, help="Base joint angle amplitude in degrees.")
     parser.add_argument("--freq", type=float, default=1.0)
     parser.add_argument("--wavelength", type=float, default=1.5)
     parser.add_argument(
@@ -58,10 +58,11 @@ def main():
     skip_steps = int(round(args.skip_seconds / model.opt.timestep))
     records = []
     cpg = HopfCPG(num_joints=6)
+    ajoint_rad = degrees_to_radians(args.ajoint)
     cpg_params = HopfCPGParams(
         frequency=args.freq,
         wavelength=args.wavelength,
-        ajoint=args.ajoint,
+        ajoint=ajoint_rad,
         mu_scales=amp_scales_to_mu_scales(args.amp_scales),
         phase_lags=args.phase_lags,
         fb_phase=args.fb_phase,
@@ -87,7 +88,7 @@ def main():
     power_proxy = np.mean(np.square(arr[:, 3:9]))
 
     print("Tethered force measurement")
-    print(f"  Hopf CPG: ajoint={args.ajoint:.3f}, freq={args.freq:.3f} Hz, wavelength={args.wavelength:.3f}, fb_phase={args.fb_phase:.3f}, fb_amp={args.fb_amp:.3f}")
+    print(f"  Hopf CPG: ajoint={args.ajoint:.3f} deg ({ajoint_rad:.3f} rad), freq={args.freq:.3f} Hz, wavelength={args.wavelength:.3f}, fb_phase={args.fb_phase:.3f}, fb_amp={args.fb_amp:.3f}")
     if args.amp_scales is not None:
         print("  amp scales:", ", ".join(f"{value:.3f}" for value in args.amp_scales))
     if args.phase_lags is not None:

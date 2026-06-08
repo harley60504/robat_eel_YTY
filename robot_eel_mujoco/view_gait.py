@@ -9,7 +9,7 @@ import mujoco
 import mujoco.viewer
 import numpy as np
 
-from hopf_cpg import HopfCPG, HopfCPGParams, amp_scales_to_mu_scales
+from hopf_cpg import HopfCPG, HopfCPGParams, amp_scales_to_mu_scales, degrees_to_radians
 
 
 def parse_args():
@@ -49,10 +49,12 @@ def main():
     base_body_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, "base_link")
 
     cpg = HopfCPG(num_joints=6)
+    ajoint_deg = float(gait["ajoint"])
+    ajoint_rad = degrees_to_radians(ajoint_deg)
     cpg_params = HopfCPGParams(
         frequency=float(gait["freq"]),
         wavelength=float(gait["wavelength"]),
-        ajoint=float(gait["ajoint"]),
+        ajoint=ajoint_rad,
         mu_scales=amp_scales_to_mu_scales(tuple(float(value) for value in gait["amp_scales"])),
         phase_lags=tuple(float(value) for value in gait["phase_lags"]),
         joint_bias=tuple(float(value) for value in gait["joint_bias"]),
@@ -62,7 +64,7 @@ def main():
 
     print(f"Loaded gait: {gait.get('name', args.gait.stem)}")
     print(f"  file={args.gait}")
-    print(f"  ajoint={cpg_params.ajoint}, freq={cpg_params.frequency}, wavelength={cpg_params.wavelength}")
+    print(f"  ajoint={ajoint_deg:.3f} deg ({cpg_params.ajoint:.3f} rad), freq={cpg_params.frequency}, wavelength={cpg_params.wavelength}")
     print("  joint_bias=", ", ".join(f"{value:.3f}" for value in cpg_params.joint_bias or ()))
 
     def reset_to_start():

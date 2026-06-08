@@ -1,8 +1,9 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../config.dart';
 
 class PythonApi {
-  static const int port = 8765;
+  static int get port => ApiConfig.pythonPort;
 
   static Uri _u(String host, String path) =>
       Uri.parse("http://$host:$port$path");
@@ -12,7 +13,10 @@ class PythonApi {
       final res = await http
           .get(_u(pcHost, "/"))
           .timeout(const Duration(milliseconds: 700));
-      return res.statusCode == 200;
+      if (res.statusCode != 200) return false;
+
+      final data = jsonDecode(res.body);
+      return data is Map && data.containsKey("preview_running");
     } catch (_) {
       return false;
     }
@@ -44,7 +48,7 @@ class PythonApi {
         body: jsonEncode({
           "esp_host": espHost,
         }),
-      );
+      ).timeout(const Duration(milliseconds: 900));
       return res.statusCode == 200;
     } catch (_) {
       return false;
@@ -56,7 +60,9 @@ class PythonApi {
   // ===============================
   static Future<bool> start({required String pcHost}) async {
     try {
-      final res = await http.post(_u(pcHost, "/start"));
+      final res = await http
+          .post(_u(pcHost, "/start"))
+          .timeout(const Duration(milliseconds: 900));
       return res.statusCode == 200;
     } catch (_) {
       return false;
@@ -65,7 +71,57 @@ class PythonApi {
 
   static Future<bool> stop({required String pcHost}) async {
     try {
-      final res = await http.post(_u(pcHost, "/stop"));
+      final res = await http
+          .post(_u(pcHost, "/stop"))
+          .timeout(const Duration(milliseconds: 900));
+      return res.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> gaits({
+    required String pcHost,
+  }) async {
+    try {
+      final res = await http
+          .get(_u(pcHost, "/gaits"))
+          .timeout(const Duration(milliseconds: 900));
+      if (res.statusCode != 200) return const [];
+      final data = jsonDecode(res.body);
+      if (data is! Map || data["gaits"] is! List) return const [];
+      return List<Map<String, dynamic>>.from(data["gaits"]);
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  static Future<bool> setGait({
+    required String pcHost,
+    required String gait,
+  }) async {
+    try {
+      final res = await http.post(
+        _u(pcHost, "/set_gait"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"gait": gait}),
+      ).timeout(const Duration(milliseconds: 900));
+      return res.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<bool> setOutputMode({
+    required String pcHost,
+    required String outputMode,
+  }) async {
+    try {
+      final res = await http.post(
+        _u(pcHost, "/set_output_mode"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"output_mode": outputMode}),
+      ).timeout(const Duration(milliseconds: 900));
       return res.statusCode == 200;
     } catch (_) {
       return false;
@@ -87,6 +143,61 @@ class PythonApi {
   static Future<bool> measureOff({required String pcHost}) async {
     try {
       final res = await http.post(_u(pcHost, "/measure_off"));
+      return res.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<bool> setRecorderUrl({
+    required String pcHost,
+    required String recorderUrl,
+  }) async {
+    try {
+      final res = await http.post(
+        _u(pcHost, "/settings/recorder_url"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"recorder_url": recorderUrl}),
+      );
+      return res.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<bool> recordingStart({required String pcHost}) async {
+    try {
+      final res = await http.post(_u(pcHost, "/recording/start"));
+      return res.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<bool> recordingStop({required String pcHost}) async {
+    try {
+      final res = await http.post(_u(pcHost, "/recording/stop"));
+      return res.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Uri previewFrameUri({required String pcHost}) =>
+      _u(pcHost, "/preview.jpg");
+
+  static Future<bool> previewStart({required String pcHost}) async {
+    try {
+      final res = await http.post(_u(pcHost, "/preview/start"));
+      return res.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<bool> previewStop({required String pcHost}) async {
+    try {
+      final res = await http.post(_u(pcHost, "/preview/stop"));
       return res.statusCode == 200;
     } catch (_) {
       return false;

@@ -1,36 +1,29 @@
 import 'package:flutter/material.dart';
 
 import 'api/esp_api.dart';
+import 'api/python_api.dart';
 import 'config.dart';
 import 'net/host_resolver.dart';
 import 'net/wifi_info.dart';
-import 'pages/python_page.dart';
 import 'pages/wifi_page.dart';
 import 'ui/ui_layout.dart';
 import 'widgets/camera_control.dart';
-import 'widgets/camera_stream.dart';
-import 'widgets/mode_switch.dart';
-import 'widgets/motion_param.dart';
-import 'widgets/servo_control_panel.dart';
+import 'widgets/control_dashboard.dart';
+import 'widgets/python_rtsp_preview.dart';
 import 'widgets/servo_table.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await ApiConfig.load();
 
   ErrorWidget.builder = (details) {
-    return Material(
-      color: const Color(0xFF050607),
+    return const Material(
+      color: Color(0xFF050607),
       child: Center(
-        child: Container(
-          margin: const EdgeInsets.all(16),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFF12161C),
-            border: Border.all(color: const Color(0xFFB3261E)),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: const Text(
-            "畫面載入失敗，請查看 debug console。",
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Text(
+            "\u756b\u9762\u8f09\u5165\u5931\u6557\uff0c\u8acb\u67e5\u770b debug console\u3002",
             style: TextStyle(color: Colors.white),
           ),
         ),
@@ -107,10 +100,8 @@ class _MainLayoutState extends State<MainLayout> {
   Future<void> _bootAndConnect() async {
     try {
       await WifiInfo.initBootSsid();
-
       final r = await HostResolver.autoSelectHostEx();
       await ApiConfig.setHost(r.host, reason: r.reason);
-
       debugPrint("[BOOT] host=${ApiConfig.host}, via=${ApiConfig.hostReason}");
       if (mounted) setState(() {});
     } catch (e) {
@@ -162,7 +153,7 @@ class _MainLayoutState extends State<MainLayout> {
               ),
               child: Center(
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 460),
+                  constraints: const BoxConstraints(maxWidth: 520),
                   child: ListView(
                     controller: scrollController,
                     padding: const EdgeInsets.fromLTRB(14, 8, 14, 18),
@@ -190,43 +181,21 @@ class _MainLayoutState extends State<MainLayout> {
     );
   }
 
-  Widget buildActiveControl({bool fillHeight = false}) {
-    final Widget child;
-    if (activeMenu == 4) {
-      child = PythonPage(compact: true, fillHeight: fillHeight);
-    } else if (activeMenu == 3) {
-      child = const ServoControlPanel(compact: true);
-    } else {
-      child = const MotionParam(compact: true);
-    }
-
-    if (fillHeight) {
-      return Expanded(
-        child: activeMenu == 4 ? child : SingleChildScrollView(child: child),
-      );
-    }
-
-    return child;
+  Widget buildControlPanel({bool fillHeight = false}) {
+    return ControlDashboard(
+      selectedMode: activeMenu,
+      fillHeight: fillHeight,
+      onModeSelected: (m) {
+        setState(() {
+          activeMenu = m;
+          userSelectedMenu = true;
+        });
+      },
+    );
   }
 
-  Widget buildControlPanel({bool fillHeight = false}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        ModeSwitch(
-          compact: true,
-          selectedMode: activeMenu,
-          onModeSelected: (m) {
-            setState(() {
-              activeMenu = m;
-              userSelectedMenu = true;
-            });
-          },
-        ),
-        const SizedBox(height: UiLayout.cardGap),
-        buildActiveControl(fillHeight: fillHeight),
-      ],
-    );
+  Widget buildPreviewArea({required bool compact}) {
+    return const PythonRtspPreview();
   }
 
   @override
@@ -236,10 +205,12 @@ class _MainLayoutState extends State<MainLayout> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("ESP32 控制面板 - ${ApiConfig.host} (${ApiConfig.hostReason})"),
+        title: Text(
+          "ESP32 \u63a7\u5236\u9762\u677f - ${ApiConfig.host} (${ApiConfig.hostReason})",
+        ),
         actions: [
           IconButton(
-            tooltip: "設定",
+            tooltip: "\u8a2d\u5b9a",
             onPressed: openSettingsSheet,
             icon: const Icon(Icons.settings),
           ),
@@ -254,7 +225,7 @@ class _MainLayoutState extends State<MainLayout> {
                   children: [
                     AspectRatio(
                       aspectRatio: 4 / 3,
-                      child: CameraStreamWS(wsUrl: ApiConfig.wsStreamUrl),
+                      child: buildPreviewArea(compact: true),
                     ),
                     const SizedBox(height: UiLayout.cardGap),
                     buildControlPanel(),
@@ -264,7 +235,7 @@ class _MainLayoutState extends State<MainLayout> {
             : LayoutBuilder(
                 builder: (context, constraints) {
                   final sideWidth = (constraints.maxWidth * 0.24)
-                      .clamp(320.0, 430.0)
+                      .clamp(360.0, 470.0)
                       .toDouble();
                   final gap = constraints.maxWidth < 1100 ? 12.0 : UiLayout.gap;
 
@@ -272,7 +243,7 @@ class _MainLayoutState extends State<MainLayout> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Expanded(
-                        child: CameraStreamWS(wsUrl: ApiConfig.wsStreamUrl),
+                        child: buildPreviewArea(compact: false),
                       ),
                       SizedBox(width: gap),
                       SizedBox(
@@ -300,10 +271,11 @@ class _SettingsSheetState extends State<_SettingsSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final pages = const [
-      WiFiPage(compact: true),
-      CameraControlPanel(compact: true, embedded: true),
-      ServoTable(compact: true),
+    final pages = [
+      const WiFiPage(compact: true),
+      const CameraControlPanel(compact: true, embedded: true),
+      const ServoTable(compact: true),
+      _ConnectionSettings(onSaved: () => setState(() {})),
     ];
 
     return Column(
@@ -313,12 +285,12 @@ class _SettingsSheetState extends State<_SettingsSheet> {
           children: [
             Expanded(
               child: Text(
-                "設定",
+                "\u8a2d\u5b9a",
                 style: Theme.of(context).textTheme.titleLarge,
               ),
             ),
             IconButton(
-              tooltip: "關閉",
+              tooltip: "\u95dc\u9589",
               onPressed: () => Navigator.pop(context),
               icon: const Icon(Icons.close),
             ),
@@ -328,19 +300,21 @@ class _SettingsSheetState extends State<_SettingsSheet> {
         SegmentedButton<int>(
           segments: const [
             ButtonSegment(
-              value: 0,
-              icon: Icon(Icons.wifi),
-              label: Text("Wi-Fi"),
-            ),
+                value: 0, icon: Icon(Icons.wifi), label: Text("Wi-Fi")),
             ButtonSegment(
               value: 1,
               icon: Icon(Icons.tune),
-              label: Text("畫質"),
+              label: Text("\u76f8\u6a5f"),
             ),
             ButtonSegment(
               value: 2,
               icon: Icon(Icons.table_chart),
               label: Text("Servo"),
+            ),
+            ButtonSegment(
+              value: 3,
+              icon: Icon(Icons.link),
+              label: Text("\u9023\u7dda"),
             ),
           ],
           selected: {selected},
@@ -351,6 +325,105 @@ class _SettingsSheetState extends State<_SettingsSheet> {
         ),
         const SizedBox(height: 12),
         pages[selected],
+      ],
+    );
+  }
+}
+
+class _ConnectionSettings extends StatefulWidget {
+  final VoidCallback onSaved;
+
+  const _ConnectionSettings({required this.onSaved});
+
+  @override
+  State<_ConnectionSettings> createState() => _ConnectionSettingsState();
+}
+
+class _ConnectionSettingsState extends State<_ConnectionSettings> {
+  late final TextEditingController pythonHostCtrl;
+  late final TextEditingController pythonPortCtrl;
+  late final TextEditingController recorderUrlCtrl;
+  String status = "";
+
+  @override
+  void initState() {
+    super.initState();
+    pythonHostCtrl = TextEditingController(text: ApiConfig.pythonHost);
+    pythonPortCtrl =
+        TextEditingController(text: ApiConfig.pythonPort.toString());
+    recorderUrlCtrl = TextEditingController(text: ApiConfig.recorderUrl);
+  }
+
+  @override
+  void dispose() {
+    pythonHostCtrl.dispose();
+    pythonPortCtrl.dispose();
+    recorderUrlCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> save() async {
+    final port = int.tryParse(pythonPortCtrl.text.trim()) ?? 8765;
+    await ApiConfig.setPythonHost(pythonHostCtrl.text);
+    await ApiConfig.setPythonPort(port);
+    await ApiConfig.setRecorderUrl(recorderUrlCtrl.text);
+
+    final synced = await PythonApi.setRecorderUrl(
+      pcHost: ApiConfig.pythonHost,
+      recorderUrl: ApiConfig.recorderUrl,
+    );
+
+    widget.onSaved();
+    if (!mounted) return;
+    setState(() {
+      status = synced
+          ? "\u5df2\u5132\u5b58\u4e26\u540c\u6b65\u9304\u5f71 URL"
+          : "\u5df2\u5132\u5b58\uff0cPython backend \u5c1a\u672a\u540c\u6b65";
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextField(
+          controller: pythonHostCtrl,
+          decoration: const InputDecoration(
+            labelText: "Python \u63a7\u5236 API Host",
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: pythonPortCtrl,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: "Python \u63a7\u5236 API Port",
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: recorderUrlCtrl,
+          decoration: const InputDecoration(
+            labelText: "Python \u9304\u5f71 RTSP URL",
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: UiLayout.buttonHeight,
+          child: ElevatedButton.icon(
+            onPressed: save,
+            icon: const Icon(Icons.save),
+            label: const Text("\u5132\u5b58\u9023\u7dda\u8a2d\u5b9a"),
+          ),
+        ),
+        if (status.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Text(status, style: const TextStyle(color: Colors.white70)),
+        ],
       ],
     );
   }

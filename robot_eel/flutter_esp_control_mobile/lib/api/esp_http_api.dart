@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import '../config.dart';
 
@@ -88,5 +89,15 @@ class EspHttpApi {
     }
 
     return res.body.trim() == 'OK';
+  }
+
+  static Future<Uint8List> downloadBoardCsv() async {
+    final res = await http.get(Uri.parse('$baseUrl/download'));
+
+    if (res.statusCode != 200) {
+      throw Exception('download failed: ${res.statusCode} ${res.body}');
+    }
+
+    return res.bodyBytes;
   }
 }

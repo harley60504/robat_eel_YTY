@@ -7,7 +7,7 @@ from pathlib import Path
 import mujoco
 import numpy as np
 
-from hopf_cpg import HopfCPG, HopfCPGParams
+from hopf_cpg import DEFAULT_AJOINT_DEG, HopfCPG, HopfCPGParams, degrees_to_radians
 from view_rectangle_course import amp_scales_to_mu_scales, turning_amp_scales
 
 
@@ -23,7 +23,7 @@ def parse_args():
     parser.add_argument("--xml", default="eel.xml")
     parser.add_argument("--seconds", type=float, default=12.0)
     parser.add_argument("--warmup-seconds", type=float, default=2.0)
-    parser.add_argument("--ajoint", "--amp", dest="ajoint", type=float, default=0.45)
+    parser.add_argument("--ajoint", "--amp", dest="ajoint", type=float, default=DEFAULT_AJOINT_DEG, help="Base joint angle amplitude in degrees.")
     parser.add_argument("--freq", type=float, default=1.0)
     parser.add_argument("--wavelength", type=float, default=1.6275)
     parser.add_argument(
@@ -79,10 +79,11 @@ def main():
             1.20,
         )
     )
+    ajoint_rad = degrees_to_radians(args.ajoint)
     cpg_params = HopfCPGParams(
         frequency=args.freq,
         wavelength=args.wavelength,
-        ajoint=args.ajoint,
+        ajoint=ajoint_rad,
         mu_scales=mu_scales,
         phase_lags=phase_lags,
         joint_bias=args.joint_bias,
@@ -142,7 +143,7 @@ def main():
 
     print("Turning measurement")
     print(
-        f"  Hopf CPG: ajoint={args.ajoint:.3f}, freq={args.freq:.3f} Hz, "
+        f"  Hopf CPG: ajoint={args.ajoint:.3f} deg ({ajoint_rad:.3f} rad), freq={args.freq:.3f} Hz, "
         f"wavelength={args.wavelength:.4f}"
     )
     print("  target amp scales:", ", ".join(f"{value:.3f}" for value in target_amp_scales))

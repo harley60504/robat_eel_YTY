@@ -7,8 +7,7 @@ Widget wifiBars(int rssi) {
     level = 4;
   } else if (rssi >= -60)
     level = 3;
-  else if (rssi >= -70)
-    level = 2;
+  else if (rssi >= -70) level = 2;
 
   return Row(
     mainAxisSize: MainAxisSize.min,

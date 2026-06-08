@@ -21,7 +21,6 @@
 #define MODE_CPG         1
 #define MODE_OFFSET      2
 #define MODE_UART_ANGLE  3
-#define MODE_PYTHON_CPG  4
 // =====================================================
 // CPG oscillator
 // =====================================================

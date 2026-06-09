@@ -1,0 +1,22 @@
+{
+  "clip": "turn_left_141203",
+  "video": "Release\\python_backend\\recordings\\clean_v_20260608_141203.mp4",
+  "wall_seconds": 8.0,
+  "point_count": 41,
+  "start_point_px": [
+    602.5793357933579,
+    1465.9557195571956
+  ],
+  "end_point_px": [
+    322.03562945368174,
+    1272.3064133016628
+  ],
+  "kind": "circle",
+  "center_px": [
+    335.61416185841125,
+    1557.3435794541992
+  ],
+  "radius_px": 259.0920838153421,
+  "arc_deg": 73.83021407605843,
+  "rmse_px": 21.793848620030356
+}

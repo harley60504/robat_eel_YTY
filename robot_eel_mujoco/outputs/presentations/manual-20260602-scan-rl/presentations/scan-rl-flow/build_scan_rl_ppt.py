@@ -9,7 +9,13 @@ from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
 from pptx.util import Inches, Pt
 
 
-OUT = Path(__file__).resolve().parent / "output" / "eel_scan_rl_automation_flow_v7.pptx"
+OUT = Path(__file__).resolve().parent / "output" / "eel_scan_rl_automation_flow_v15.pptx"
+PREVIEW_IMAGE = Path(r"C:\Users\ytyla\Pictures\real_vs_mujoco_all.png")
+SWIM_PREVIEWS = [
+    ("直線游泳預覽", Path(r"C:\Users\ytyla\Pictures\straight_real_vs_mujoco.png")),
+    ("左轉游泳預覽", Path(r"C:\Users\ytyla\Pictures\turn_left_real_vs_mujoco.png")),
+    ("原地左旋預覽", Path(r"C:\Users\ytyla\Pictures\spin_left_real_vs_mujoco.png")),
+]
 
 W, H = Inches(13.333), Inches(7.5)
 
@@ -134,6 +140,19 @@ def line(slide, x1, y1, x2, y2, color=LINE, width=1.2):
     return con
 
 
+def add_picture_contained(slide, image_path, x, y, max_w, max_h):
+    from PIL import Image
+
+    with Image.open(image_path) as im:
+        img_w, img_h = im.size
+    scale = min(max_w / img_w, max_h / img_h)
+    w = img_w * scale
+    h = img_h * scale
+    px = x + (max_w - w) / 2
+    py = y + (max_h - h) / 2
+    return slide.shapes.add_picture(str(image_path), Inches(px), Inches(py), width=Inches(w), height=Inches(h))
+
+
 def bullet(slide, items, x, y, w, h, size=14, color=INK):
     box = slide.shapes.add_textbox(Inches(x), Inches(y), Inches(w), Inches(h))
     tf = box.text_frame
@@ -233,6 +252,61 @@ def add_rl_tuning_slide(prs, blank, no):
     footer(s, no)
 
 
+def add_reward_to_cpg_detail_slide(prs, blank, no):
+    s = prs.slides.add_slide(blank)
+    add_bg(s); kicker(s, "Reward 到 CPG", no); title(s, "Reward 改 CPG 的重點鏈路：先改 policy theta，再由 action 寫入 CPG 參數。", "reward 算分 -> 更新 policy theta -> policy 輸出 action -> _physical_action() 轉 bounds -> amp_scales / phase_lags -> HopfCPGParams")
+
+    steps = [
+        ("1", "reward 算分", "MuJoCo 跑一步後量測 vx、漂移、yaw、能耗、action 變化。\n分數高代表這個 action 讓 eel 更直、更穩、更省。", BLUE),
+        ("2", "更新 policy theta", "RL 演算法用 reward 調整神經網路權重 theta。\n高 reward 的 action 機率提高，低 reward 的 action 機率降低。", TEAL),
+        ("3", "policy 輸出 action", "新的 theta 讀 observation 後輸出 11 維 action。\naction 仍是 normalized [-1, 1]，不是實際馬達角度。", GOLD),
+    ]
+    for i, (num, head, body, col) in enumerate(steps):
+        x = 0.72 + i * 4.12
+        pill(s, num, x, 2.02, 0.42, 0.42, col, col, WHITE, 13, True)
+        tx(s, head, x + 0.52, 2.04, 2.8, 0.28, 15, col, True)
+        rect(s, body, x, 2.55, 3.35, 1.05, WHITE, col, INK, 10, False)
+        if i < 2:
+            arrow(s, x + 3.42, 3.08, x + 3.92, 3.08, col, 1.6)
+
+    tx(s, "執行時如何真正改到 CPG", 0.82, 4.05, 3.5, 0.3, 16, INK, True)
+    rect(s, "action[0:6]\n-> amp_scales\n-> amp_scales_to_mu_scales()\n-> HopfCPGParams.mu_scales\n\n效果：改每一節的振幅大小；某節擺大、某節擺小，身體波形就改變。", 0.82, 4.48, 3.65, 1.55, INK, INK, WHITE, 10, False)
+    rect(s, "action[6:11]\n-> phase_lags\n-> HopfCPGParams.phase_lags\n\n效果：改相鄰關節波峰出現的時間差；相位差變大/變小，推進波往尾巴傳的節奏就改變。", 4.82, 4.48, 3.65, 1.55, INK, INK, WHITE, 10, False)
+    rect(s, "HopfCPGParams(\n  fixed frequency / wavelength / ajoint,\n  mu_scales = new_mu_scales,\n  phase_lags = new_phase_lags,\n)\n\n下一個控制步：Hopf CPG 用新參數積分，產生新的 q[j] servo target。", 8.82, 4.48, 3.55, 1.55, WHITE, RED, INK, 10, True)
+    arrow(s, 4.48, 5.25, 4.78, 5.25, BLUE, 1.4)
+    arrow(s, 8.48, 5.25, 8.78, 5.25, GOLD, 1.4)
+    tx(s, "所以 reward 的作用不是「直接改 CPG 公式」，而是改 policy theta；policy theta 改變後，下一次 action 才會把新的振幅與相位寫進 CPG。", 0.9, 6.35, 11.35, 0.42, 13, RED, True, PP_ALIGN.CENTER)
+    footer(s, no)
+
+
+def add_ppo_rationale_slide(prs, blank, no):
+    s = prs.slides.add_slide(blank)
+    add_bg(s); kicker(s, "Why PPO", no); title(s, "不用 Q-learning 查表，因為 CPG action 是 11 維連續控制。", "PPO 直接學 policy theta，讓 observation 對應到連續的 amp_scales 與 phase_lags。")
+
+    tx(s, "Q-learning 的問題", 0.7, 1.92, 2.6, 0.28, 15, RED, True)
+    rect(s, "Q-learning / DQN 核心是學 Q(s, a)：\n在某 state 做某 action，未來總分大概多少。\n\n但本研究 action 是：\n6 個 amp_scales + 5 個 phase_lags\n= 11 維連續 action。\n\n若每一維只切 5 格：\n5^11 = 48,828,125 種組合。\n切 10 格則是 10^11 種。\n\n結果：查表或離散化會讓 action space 爆炸，而且會破壞 CPG 參數的平滑微調。", 0.72, 2.32, 3.55, 3.62, WHITE, RED, INK, 10, False)
+
+    tx(s, "PPO 的做法", 4.55, 1.92, 2.4, 0.28, 15, BLUE, True)
+    rect(s, "PPO 是 policy-gradient / actor-critic 方法。\n它不需要列出所有 action，而是直接學：\n\npolicy theta(observation) -> action\n\n在本系統中：\nobservation -> 11 維 action\n-> _physical_action()\n-> amp_scales / phase_lags\n-> HopfCPGParams\n\nPPO 用 clipped objective 限制 policy 更新幅度，讓訓練比一般 policy gradient 穩定，也比 TRPO 更容易實作與調參。", 4.55, 2.32, 3.55, 3.62, WHITE, BLUE, INK, 10, False)
+
+    rect(s, "放在本研究的解釋：\n\nQ-learning 像是在 state-action 空間裡替每個候選動作估分；\nPPO 則是直接調整 policy theta，讓 policy 輸出更好的連續 CPG action。\n\n因此 reward 的作用路徑是：\nreward / advantage -> policy theta -> continuous action -> CPG shape。", 8.45, 2.32, 3.65, 3.62, SOFT, LINE, INK, 11, False)
+
+    tx(s, "論文依據：Schulman et al., Proximal Policy Optimization Algorithms, arXiv:1707.06347, 2017.  對照：Mnih et al., Human-level control through deep reinforcement learning, Nature, 2015.", 0.76, 6.31, 11.7, 0.22, 8, MUTED)
+    tx(s, "CPG + DRL 仿生游泳根據：Hameed et al., Deep reinforcement learning enabling a BCFbot to learn various undulatory patterns, Ocean Engineering 320, 120322, 2025. DOI: 10.1016/j.oceaneng.2025.120322.", 0.76, 6.55, 11.7, 0.22, 8, MUTED)
+    footer(s, no)
+
+
+def add_swim_preview_slide(prs, blank, no, label, image_path):
+    s = prs.slides.add_slide(blank)
+    add_bg(s); kicker(s, "實際游泳預覽", no); title(s, f"{label}：用實際游泳與 MuJoCo 對照確認 gait 行為。")
+    if image_path.exists():
+        add_picture_contained(s, image_path, 1.15, 1.75, 10.95, 4.82)
+        tx(s, f"Source: {image_path}", 0.95, 6.78, 11.2, 0.22, 9, MUTED, align=PP_ALIGN.CENTER)
+    else:
+        rect(s, f"Preview image missing:\n{image_path}", 1.4, 2.3, 10.5, 2.4, SOFT, LINE, MUTED, 16, True)
+    footer(s, no)
+
+
 def add_deck():
     prs = Presentation()
     prs.slide_width = W
@@ -320,9 +394,15 @@ def add_deck():
     # 7 where RL tunes CPG
     add_rl_tuning_slide(prs, blank, 7)
 
-    # 8 automation flowchart
+    # 8 how reward changes CPG through policy
+    add_reward_to_cpg_detail_slide(prs, blank, 8)
+
+    # 9 why PPO instead of Q-learning
+    add_ppo_rationale_slide(prs, blank, 9)
+
+    # 10 automation flowchart
     s = prs.slides.add_slide(blank)
-    add_bg(s); kicker(s, "自動化流程", 8); title(s, "整個流程可以做成一次執行：掃描、收斂、RL、驗證、輸出報告。")
+    add_bg(s); kicker(s, "自動化流程", 10); title(s, "整個流程可以做成一次執行：掃描、收斂、RL、驗證、輸出報告。")
     nodes = [
         ("設定基準參數\nfreq / wavelength / ajoint", 0.75, 2.05, BLUE),
         ("產生候選\nrandom starts + local steps", 3.05, 2.05, TEAL),
@@ -342,21 +422,21 @@ def add_deck():
     arrow(s, 6.8, 5.1, 7.8, 5.1, RED, 1.8)
     arrow(s, 8.55, 4.65, 8.1, 2.95, BLUE, 1.5)
     tx(s, "未達門檻就回到排序/範圍設定", 8.45, 3.62, 2.5, 0.3, 10, MUTED, align=PP_ALIGN.CENTER)
-    footer(s, 8)
+    footer(s, 10)
 
-    # 9 implementation outputs
+    # 11 implementation outputs
     s = prs.slides.add_slide(blank)
-    add_bg(s); kicker(s, "實作輸出", 9); title(s, "自動化腳本應該留下三種東西：參數、軌跡、決策依據。")
+    add_bg(s); kicker(s, "實作輸出", 11); title(s, "自動化腳本應該留下三種東西：參數、軌跡、決策依據。")
     rect(s, "1. 參數檔\nbest_params.json\namp_scales / phase_lags", 0.9, 2.2, 3.0, 1.2, WHITE, BLUE, BLUE, 14, True)
     rect(s, "2. 指標表\nscan_results.csv\nscore / Fx / Fy / energy", 4.25, 2.2, 3.0, 1.2, WHITE, TEAL, TEAL, 14, True)
     rect(s, "3. 驗證軌跡\ntrajectory.csv / plots\nx-y / yaw / velocity", 7.6, 2.2, 3.0, 1.2, WHITE, GOLD, GOLD, 14, True)
     bullet(s, ["掃描後：把 top-k 的 min/max 或 best ± margin 轉為 RL bounds。", "RL 後：用相同 measurement script 重跑，避免 reward 和真實評估脫節。", "最終報告：列出 baseline、scan-best、RL-best 三者比較。"], 0.95, 4.2, 5.9, 1.7, 14)
     rect(s, "建議指令範例\npython auto_tune_hopf_shape.py --xml eel_tethered.xml --output-dir outputs/hopf_shape_auto\npython measure_free_swim_speed.py --amp-scales ... --phase-lags ... --csv outputs/verify.csv", 7.2, 4.05, 5.2, 1.95, INK, INK, WHITE, 11, False)
-    footer(s, 9)
+    footer(s, 11)
 
-    # 10 rectangle path following
+    # 12 rectangle path following
     s = prs.slides.add_slide(blank)
-    add_bg(s); kicker(s, "繞長方形流程", 10); title(s, "直線 gait 找好後，長方形路徑只需要在上層加 steering。", "底層仍用掃描/RL 得到的 Hopf CPG 直游參數；上層 pure pursuit 決定目前要往哪個方向修正。")
+    add_bg(s); kicker(s, "繞長方形流程", 12); title(s, "直線 gait 找好後，長方形路徑只需要在上層加 steering。", "底層仍用掃描/RL 得到的 Hopf CPG 直游參數；上層 pure pursuit 決定目前要往哪個方向修正。")
     rectangle_course(s, 10.35, 2.1, 1.95, 1.18)
     rect(s, "1. 取得位置\nbase x, y, yaw", 0.8, 2.22, 2.1, 0.74, WHITE, BLUE, BLUE, 12, True)
     arrow(s, 2.98, 2.59, 3.52, 2.59, BLUE, 1.8)
@@ -372,11 +452,11 @@ def add_deck():
     arrow(s, 9.58, 4.59, 10.12, 4.59, TEAL, 1.8)
     rect(s, "7. 評估\nlaps / contacts / bounds", 10.22, 4.2, 2.1, 0.78, WHITE, GOLD, GOLD, 11, True)
     bullet(s, ["`pure_pursuit`：用最近路徑進度加上 `lookahead`，不是只追下一個角點。", "`steering_profile()`：把單一 steer 值變成 6 個 joint bias，尾端修正較大。", "`turning_amp_scales()`：轉彎時尾端振幅增加，讓身體更容易繞角。"], 0.95, 5.65, 11.8, 0.9, 12)
-    footer(s, 10)
+    footer(s, 12)
 
-    # 11 conclusion
+    # 13 conclusion
     s = prs.slides.add_slide(blank)
-    add_bg(s); kicker(s, "結論", 11); title(s, "這個流程的價值，是把可解釋搜尋和資料驅動微調接起來。")
+    add_bg(s); kicker(s, "結論", 13); title(s, "這個流程的價值，是把可解釋搜尋和資料驅動微調接起來。")
     for i, (head, body, col) in enumerate([
         ("先懂 CPG", "CPG 定義擺尾波形；掃描與 RL 都是在調這個波形。", BLUE),
         ("再掃描", "用物理模擬快速找出可直游的 CPG 參數區域。", TEAL),
@@ -386,7 +466,11 @@ def add_deck():
         pill(s, head, x, 2.35, 2.05, 0.55, WHITE, col, col, 16, True)
         tx(s, body, x - 0.35, 3.15, 2.75, 0.9, 15, INK, align=PP_ALIGN.CENTER)
     tx(s, "重點：CPG 負責產生擺尾波形，掃描先找穩定直游參數，RL 再在合理範圍內微調，最後用 steering 接上長方形路徑。", 1.2, 5.15, 11.0, 0.8, 18, INK, True, PP_ALIGN.CENTER)
-    footer(s, 11)
+    footer(s, 13)
+
+    # 14-16 real swimming previews
+    for offset, (label, image_path) in enumerate(SWIM_PREVIEWS):
+        add_swim_preview_slide(prs, blank, 14 + offset, label, image_path)
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
     prs.save(OUT)

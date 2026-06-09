@@ -8,13 +8,13 @@ import mujoco
 import mujoco.viewer
 import numpy as np
 
-from hopf_cpg import HopfCPG, HopfCPGParams
+from hopf_cpg import DEFAULT_AJOINT_DEG, HopfCPG, HopfCPGParams, degrees_to_radians
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="View tethered eel motion while printing live force estimates.")
     parser.add_argument("--xml", default="eel_tethered.xml")
-    parser.add_argument("--ajoint", "--amp", dest="ajoint", type=float, default=0.45)
+    parser.add_argument("--ajoint", "--amp", dest="ajoint", type=float, default=DEFAULT_AJOINT_DEG, help="Base joint angle amplitude in degrees.")
     parser.add_argument("--freq", type=float, default=1.0)
     parser.add_argument("--wavelength", type=float, default=1.5)
     parser.add_argument("--fb-phase", type=float, default=0.0)
@@ -40,10 +40,11 @@ def main():
     last_print = 0.0
     print_period = 1.0 / max(args.print_hz, 1e-6)
     cpg = HopfCPG(num_joints=6)
+    ajoint_rad = degrees_to_radians(args.ajoint)
     cpg_params = HopfCPGParams(
         frequency=args.freq,
         wavelength=args.wavelength,
-        ajoint=args.ajoint,
+        ajoint=ajoint_rad,
         fb_phase=args.fb_phase,
         fb_amp=args.fb_amp,
     )

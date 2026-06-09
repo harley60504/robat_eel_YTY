@@ -7,7 +7,7 @@ from pathlib import Path
 import mujoco
 import numpy as np
 
-from hopf_cpg import HopfCPG, HopfCPGParams, wrap_pi
+from hopf_cpg import DEFAULT_AJOINT_DEG, HopfCPG, HopfCPGParams, degrees_to_radians, wrap_pi
 from rectangle_path import RectanglePath
 from view_rectangle_course import (
     amp_scales_to_mu_scales,
@@ -22,7 +22,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Headless test for the 3 m x 1.5 m rectangle course.")
     parser.add_argument("--xml", default="eel_rectangle.xml")
     parser.add_argument("--seconds", type=float, default=80.0)
-    parser.add_argument("--ajoint", "--amp", dest="ajoint", type=float, default=0.45)
+    parser.add_argument("--ajoint", "--amp", dest="ajoint", type=float, default=DEFAULT_AJOINT_DEG, help="Base joint angle amplitude in degrees.")
     parser.add_argument("--freq", type=float, default=1.0)
     parser.add_argument("--wavelength", type=float, default=1.6275)
     parser.add_argument(
@@ -42,13 +42,13 @@ def parse_args():
     )
     parser.add_argument("--controller", choices=("pure_pursuit", "waypoint"), default="pure_pursuit")
     parser.add_argument("--path-half-x", type=float, default=1.10)
-    parser.add_argument("--path-half-y", type=float, default=0.40)
-    parser.add_argument("--lookahead", type=float, default=0.50)
-    parser.add_argument("--reach-radius", type=float, default=0.18)
-    parser.add_argument("--steer-gain", type=float, default=0.50)
-    parser.add_argument("--max-bias", type=float, default=0.34)
-    parser.add_argument("--turn-amp-gain", type=float, default=0.6)
-    parser.add_argument("--steer-smoothing", type=float, default=0.08)
+    parser.add_argument("--path-half-y", type=float, default=0.35)
+    parser.add_argument("--lookahead", type=float, default=0.75)
+    parser.add_argument("--reach-radius", type=float, default=0.25)
+    parser.add_argument("--steer-gain", type=float, default=0.80)
+    parser.add_argument("--max-bias", type=float, default=0.50)
+    parser.add_argument("--turn-amp-gain", type=float, default=1.0)
+    parser.add_argument("--steer-smoothing", type=float, default=0.14)
     parser.add_argument("--reset-x", type=float, default=1.725)
     parser.add_argument("--reset-y", type=float, default=0.90)
     parser.add_argument("--contact-ignore-seconds", type=float, default=0.5)
@@ -63,6 +63,7 @@ def main():
     model.opt.gravity[:] = (0, 0, 0)
     base_body_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, "base_link")
     cpg = HopfCPG(num_joints=6)
+    ajoint_rad = degrees_to_radians(args.ajoint)
     path = RectanglePath(args.path_half_x, args.path_half_y)
 
     waypoint_index = 0
@@ -120,7 +121,7 @@ def main():
         params = HopfCPGParams(
             frequency=args.freq,
             wavelength=args.wavelength,
-            ajoint=args.ajoint,
+            ajoint=ajoint_rad,
             mu_scales=mu_scales,
             phase_lags=args.phase_lags,
             joint_bias=steering_profile(steer),
@@ -164,6 +165,7 @@ def main():
 
     base_pos = data.xpos[base_body_id]
     print("Rectangle course measurement")
+    print(f"  Hopf CPG: ajoint={args.ajoint:.3f} deg ({ajoint_rad:.3f} rad), freq={args.freq:.3f} Hz, wavelength={args.wavelength:.4f}")
     print(f"  seconds={data.time:.2f}, laps={laps}, waypoint_hits={waypoint_hits}, next_wp={waypoint_index + 1}")
     print(f"  out_of_bounds={out_of_bounds}")
     print(f"  final x={base_pos[0]:.3f}, y={base_pos[1]:.3f}, yaw={data.qpos[2]:.3f}")

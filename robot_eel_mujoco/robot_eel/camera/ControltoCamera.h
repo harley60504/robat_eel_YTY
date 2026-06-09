@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include "PacketChecksum.h"
+#include "config.h"
 
 /* ===============================
  *  UART Control Packet Definition
@@ -17,6 +18,9 @@ typedef struct {
   float    frequency;
   float    lambda;
   float    L;
+  float    ampScales[bodyNum];
+  float    phaseLags[bodyNum - 1];
+  float    jointBiasDeg[bodyNum];
   bool     isPaused;
   uint8_t  controlMode;
   bool     useFeedback;
@@ -43,6 +47,9 @@ static inline void sendControlParamsUART(
   float  frequency,
   float  lambda,
   float  L,
+  const float* ampScales,
+  const float* phaseLags,
+  const float* jointBiasDeg,
   bool   isPaused,
   uint8_t controlMode,
   bool   useFeedback,
@@ -55,6 +62,13 @@ static inline void sendControlParamsUART(
   pkt.frequency     = frequency;
   pkt.lambda        = lambda;
   pkt.L             = L;
+  for (int i = 0; i < bodyNum; i++) {
+    pkt.ampScales[i] = ampScales[i];
+    pkt.jointBiasDeg[i] = jointBiasDeg[i];
+  }
+  for (int i = 0; i < bodyNum - 1; i++) {
+    pkt.phaseLags[i] = phaseLags[i];
+  }
   pkt.isPaused      = isPaused;
   pkt.controlMode   = controlMode;
   pkt.useFeedback   = useFeedback;

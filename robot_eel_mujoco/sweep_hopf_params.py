@@ -7,7 +7,7 @@ from pathlib import Path
 import mujoco
 import numpy as np
 
-from hopf_cpg import HopfCPG, HopfCPGParams
+from hopf_cpg import DEFAULT_AJOINT_DEG, HopfCPG, HopfCPGParams, degrees_to_radians
 
 
 def parse_args():
@@ -19,7 +19,7 @@ def parse_args():
     parser.add_argument("--wavelength-min", type=float, default=1.2)
     parser.add_argument("--wavelength-max", type=float, default=1.8)
     parser.add_argument("--wavelength-count", type=int, default=13)
-    parser.add_argument("--ajoint", type=float, default=0.45)
+    parser.add_argument("--ajoint", type=float, default=DEFAULT_AJOINT_DEG, help="Base joint angle amplitude in degrees.")
     parser.add_argument("--seconds", type=float, default=4.0)
     parser.add_argument("--warmup-seconds", type=float, default=1.0)
     parser.add_argument("--fy-weight", type=float, default=0.005)
@@ -29,13 +29,14 @@ def parse_args():
 
 
 def measure_case(model, freq: float, wavelength: float, ajoint: float, seconds: float, warmup_seconds: float):
+    ajoint_rad = degrees_to_radians(ajoint)
     data = mujoco.MjData(model)
     cpg = HopfCPG(
         num_joints=6,
         params=HopfCPGParams(
             frequency=freq,
             wavelength=wavelength,
-            ajoint=ajoint,
+            ajoint=ajoint_rad,
             fb_phase=0.0,
             fb_amp=0.0,
         ),

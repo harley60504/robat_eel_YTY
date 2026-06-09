@@ -8,7 +8,7 @@ import mujoco
 import mujoco.viewer
 import numpy as np
 
-from hopf_cpg import HopfCPG, HopfCPGParams, wrap_pi
+from hopf_cpg import DEFAULT_AJOINT_DEG, HopfCPG, HopfCPGParams, degrees_to_radians, wrap_pi
 from rectangle_path import RectanglePath
 
 
@@ -63,7 +63,7 @@ def amp_scales_to_mu_scales(amp_scales: tuple[float, ...]) -> tuple[float, ...]:
 def parse_args():
     parser = argparse.ArgumentParser(description="View an eel following a 3 m x 1.5 m rectangle course.")
     parser.add_argument("--xml", default="eel_rectangle.xml")
-    parser.add_argument("--ajoint", "--amp", dest="ajoint", type=float, default=0.45)
+    parser.add_argument("--ajoint", "--amp", dest="ajoint", type=float, default=DEFAULT_AJOINT_DEG, help="Base joint angle amplitude in degrees.")
     parser.add_argument("--freq", type=float, default=1.0)
     parser.add_argument("--wavelength", type=float, default=1.6275)
     parser.add_argument(
@@ -84,21 +84,21 @@ def parse_args():
     )
     parser.add_argument("--controller", choices=("pure_pursuit", "waypoint"), default="pure_pursuit")
     parser.add_argument("--path-half-x", type=float, default=1.10)
-    parser.add_argument("--path-half-y", type=float, default=0.40)
-    parser.add_argument("--lookahead", type=float, default=0.50)
-    parser.add_argument("--reach-radius", type=float, default=0.18)
-    parser.add_argument("--steer-gain", type=float, default=0.55)
-    parser.add_argument("--max-bias", type=float, default=0.34)
+    parser.add_argument("--path-half-y", type=float, default=0.35)
+    parser.add_argument("--lookahead", type=float, default=0.75)
+    parser.add_argument("--reach-radius", type=float, default=0.25)
+    parser.add_argument("--steer-gain", type=float, default=0.80)
+    parser.add_argument("--max-bias", type=float, default=0.50)
     parser.add_argument(
         "--turn-amp-gain",
         type=float,
-        default=0.6,
+        default=1.0,
         help="Increase CPG amplitude target as |steer| grows. 0 disables turning amplitude modulation.",
     )
     parser.add_argument(
         "--steer-smoothing",
         type=float,
-        default=0.08,
+        default=0.14,
         help="Low-pass factor for steering. 1.0 disables smoothing; smaller is smoother.",
     )
     parser.add_argument("--print-hz", type=float, default=2.0)
@@ -123,6 +123,7 @@ def main():
     base_body_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, "base_link")
 
     cpg = HopfCPG(num_joints=6)
+    ajoint_rad = degrees_to_radians(args.ajoint)
     path = RectanglePath(args.path_half_x, args.path_half_y)
     wall_geom_ids = {
         mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, name)
@@ -193,7 +194,7 @@ def main():
             cpg_params = HopfCPGParams(
                 frequency=args.freq,
                 wavelength=args.wavelength,
-                ajoint=args.ajoint,
+                ajoint=ajoint_rad,
                 mu_scales=mu_scales,
                 phase_lags=args.phase_lags,
                 joint_bias=joint_bias,

@@ -7,7 +7,7 @@ import mujoco
 import mujoco.viewer
 import numpy as np
 
-from hopf_cpg import HopfCPG, HopfCPGParams, amp_scales_to_mu_scales
+from hopf_cpg import DEFAULT_AJOINT_DEG, HopfCPG, HopfCPGParams, amp_scales_to_mu_scales, degrees_to_radians
 
 
 def parse_float_list(value: str, expected_len: int, name: str) -> tuple[float, ...]:
@@ -23,7 +23,7 @@ def parse_args():
     )
     parser.add_argument("--xml", default="eel.xml")
     parser.add_argument("--freq", type=float, default=1.0)
-    parser.add_argument("--ajoint", type=float, default=0.45)
+    parser.add_argument("--ajoint", type=float, default=DEFAULT_AJOINT_DEG, help="Base joint angle amplitude in degrees.")
     parser.add_argument("--before-wavelength", type=float, default=1.6275)
     parser.add_argument("--after-wavelength", type=float, default=3.0)
     parser.add_argument("--before-amp-scale", type=float, default=1.0)
@@ -56,21 +56,24 @@ def parse_args():
         help="hopf uses oscillator state; sin directly computes joint angles from time.",
     )
     parser.add_argument("--print-hz", type=float, default=2.0)
-    parser.add_argument("--reset-x", type=float, default=4.0)
-    parser.add_argument("--reset-y", type=float, default=1.0)
+    parser.add_argument("--start-x", type=float, default=-1.10)
+    parser.add_argument("--start-y", type=float, default=0.0)
+    parser.add_argument("--reset-x", type=float, default=1.725)
+    parser.add_argument("--reset-y", type=float, default=0.90)
     return parser.parse_args()
 
 
 def make_params(args, switched: bool) -> HopfCPGParams:
     amp_scale = args.after_amp_scale if switched else args.before_amp_scale
     wavelength = args.after_wavelength if switched else args.before_wavelength
+    base_ajoint = degrees_to_radians(args.ajoint)
 
     if args.amp_mode == "mu":
-        ajoint = args.ajoint
+        ajoint = base_ajoint
         target_amp_scales = tuple(amp_scale * float(value) for value in args.amp_scales)
         mu_scales = amp_scales_to_mu_scales(target_amp_scales)
     else:
-        ajoint = args.ajoint * amp_scale
+        ajoint = base_ajoint * amp_scale
         mu_scales = amp_scales_to_mu_scales(args.amp_scales)
 
     return HopfCPGParams(
@@ -91,7 +94,7 @@ def sine_targets(t: float, args, switched: bool) -> np.ndarray:
     amp_scales = np.asarray(args.amp_scales, dtype=np.float64)
     phases = -np.arange(6, dtype=np.float64) * phase_lag
     omega = 2.0 * np.pi * args.freq
-    return args.ajoint * amp_scale * amp_scales * np.cos(omega * t + phases)
+    return degrees_to_radians(args.ajoint) * amp_scale * amp_scales * np.cos(omega * t + phases)
 
 
 def main():
@@ -108,8 +111,13 @@ def main():
 
     def reset_to_start():
         mujoco.mj_resetData(model, data)
+        base_xml_pos = model.body_pos[base_body_id]
+        data.qpos[0] = args.start_x - base_xml_pos[0]
+        data.qpos[1] = args.start_y - base_xml_pos[1]
         cpg.reset()
         mujoco.mj_forward(model, data)
+
+    reset_to_start()
 
     print(
         "CPG step-change viewer\n"
@@ -123,7 +131,7 @@ def main():
 
     with mujoco.viewer.launch_passive(model, data) as viewer:
         with viewer.lock():
-            viewer.cam.lookat[:] = np.array([0.0, 0.0, -0.02])
+            viewer.cam.lookat[:] = np.array([args.start_x, args.start_y, -0.02])
             viewer.cam.distance = 1.4
             viewer.cam.elevation = -70
             viewer.cam.azimuth = 0

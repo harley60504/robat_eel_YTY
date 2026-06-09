@@ -4,9 +4,15 @@ from dataclasses import dataclass
 
 import numpy as np
 
+DEFAULT_AJOINT_DEG = 15.0
+
 
 def wrap_pi(x):
     return (x + np.pi) % (2.0 * np.pi) - np.pi
+
+
+def degrees_to_radians(value: float) -> float:
+    return float(np.deg2rad(float(value)))
 
 
 def amp_scales_to_mu_scales(amp_scales: tuple[float, ...] | np.ndarray | None) -> tuple[float, ...] | None:
@@ -21,7 +27,7 @@ class HopfCPGParams:
     frequency: float = 1.0
     wavelength: float = 1.5
     body_length: float = 1.0
-    ajoint: float = 0.45
+    ajoint: float = degrees_to_radians(DEFAULT_AJOINT_DEG)
     alpha: float = 4.0
     mu: float = 1.0
     mu_scales: tuple[float, ...] | None = None

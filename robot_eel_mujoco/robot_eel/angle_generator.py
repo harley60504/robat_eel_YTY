@@ -1,5 +1,5 @@
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 # =============================
 # Servo Config
@@ -10,154 +10,156 @@ MAX_DEG = 240
 servoDefaultAngles = [120] * SERVO_COUNT
 
 # =============================
-# Mode Select
-# 改這裡就好："SIN" 或 "CPG"
+# MuJoCo / RL gait presets
 # =============================
 ANGLE_MODE = "CPG"
+
+AJOINT_DEG = 15.0
+FREQUENCY_HZ = 1.0
+LAMBDA = 1.6275
+BODY_LENGTH = 1.0
+
+
+@dataclass(frozen=True)
+class GaitPreset:
+    key: str
+    label: str
+    ajoint: float
+    frequency: float
+    lambda_: float
+    body_length: float
+    amp_scales: tuple[float, ...]
+    phase_lags: tuple[float, ...]
+    joint_bias_deg: tuple[float, ...]
+
+
+RL_VXHARD_AMP_SCALES = (1.24, 1.08, 1.0, 1.05, 1.1, 1.2)
+RL_VXHARD_PHASE_LAGS = (0.614439, 0.614439, 0.614439, 0.614439, 0.614439)
+
+TURN_SOFT_BIAS_DEG = tuple(math.degrees(value) for value in (0.08, 0.10, 0.12, 0.14, 0.16, 0.18))
+TURN_STRONG_BIAS_DEG = tuple(math.degrees(value) for value in (0.12, 0.15, 0.18, 0.21, 0.24, 0.27))
+
+GAIT_PRESETS = {
+    "straight_rl": GaitPreset(
+        key="straight_rl",
+        label="Straight RL",
+        ajoint=AJOINT_DEG,
+        frequency=FREQUENCY_HZ,
+        lambda_=LAMBDA,
+        body_length=BODY_LENGTH,
+        amp_scales=RL_VXHARD_AMP_SCALES,
+        phase_lags=RL_VXHARD_PHASE_LAGS,
+        joint_bias_deg=(0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
+    ),
+    "left_turn_rl": GaitPreset(
+        key="left_turn_rl",
+        label="Left Turn RL",
+        ajoint=AJOINT_DEG,
+        frequency=FREQUENCY_HZ,
+        lambda_=LAMBDA,
+        body_length=BODY_LENGTH,
+        amp_scales=RL_VXHARD_AMP_SCALES,
+        phase_lags=RL_VXHARD_PHASE_LAGS,
+        joint_bias_deg=TURN_SOFT_BIAS_DEG,
+    ),
+    "left_spin_rl": GaitPreset(
+        key="left_spin_rl",
+        label="Left Strong RL",
+        ajoint=AJOINT_DEG,
+        frequency=FREQUENCY_HZ,
+        lambda_=LAMBDA,
+        body_length=BODY_LENGTH,
+        amp_scales=RL_VXHARD_AMP_SCALES,
+        phase_lags=RL_VXHARD_PHASE_LAGS,
+        joint_bias_deg=TURN_STRONG_BIAS_DEG,
+    ),
+    "right_turn_rl": GaitPreset(
+        key="right_turn_rl",
+        label="Right Turn RL",
+        ajoint=AJOINT_DEG,
+        frequency=FREQUENCY_HZ,
+        lambda_=LAMBDA,
+        body_length=BODY_LENGTH,
+        amp_scales=RL_VXHARD_AMP_SCALES,
+        phase_lags=RL_VXHARD_PHASE_LAGS,
+        joint_bias_deg=tuple(-value for value in TURN_SOFT_BIAS_DEG),
+    ),
+    "right_spin_rl": GaitPreset(
+        key="right_spin_rl",
+        label="Right Strong RL",
+        ajoint=AJOINT_DEG,
+        frequency=FREQUENCY_HZ,
+        lambda_=LAMBDA,
+        body_length=BODY_LENGTH,
+        amp_scales=RL_VXHARD_AMP_SCALES,
+        phase_lags=RL_VXHARD_PHASE_LAGS,
+        joint_bias_deg=tuple(-value for value in TURN_STRONG_BIAS_DEG),
+    ),
+}
+
+current_gait_key = "straight_rl"
+
+
+def _gait() -> GaitPreset:
+    return GAIT_PRESETS[current_gait_key]
 
 # =============================
 # SIN Params
 # =============================
 SIN_BASE = 0.0
-SIN_AMP = 20.0
-SIN_FREQ = 0.6
-SIN_PHASE_STEP = 0.7
+SIN_AMP = AJOINT_DEG
+SIN_FREQ = FREQUENCY_HZ
 
 # =============================
 # CPG Params
 # =============================
-L = 0.65
-lambda_ = 0.6
-frequency = 0.5
-Ajoint = 30.0
-
-# =============================
-# On-board CPG Params
-# 給 controller.py 的 cpg output mode 使用：
-# Python / PPO 只送參數，控制板自己跑 CPG。
-# =============================
-ONBOARD_AJOINT = 30.0
-ONBOARD_FREQ = 0.5
-ONBOARD_LAMBDA = 0.6
-ONBOARD_L = 0.65
 ONBOARD_FEEDBACK_GAIN = 1.0
 
 
-@dataclass
-class OnboardCPGCommand:
-    Ajoint: float = ONBOARD_AJOINT
-    frequency: float = ONBOARD_FREQ
-    lambda_: float = ONBOARD_LAMBDA
-    L: float = ONBOARD_L
-    paused: bool = False
-    feedback: float = ONBOARD_FEEDBACK_GAIN
-    extra: dict = field(default_factory=dict)
-
-# =============================
-# Hopf Oscillator
-# =============================
-class HopfOscillator:
-    def __init__(self):
-        self.r = 0.25
-        self.theta = 0.0
-        self.alpha = 12.0
-        self.mu = 1.0
-
-cpg = [HopfOscillator() for _ in range(SERVO_COUNT)]
-
-# =============================
-# Utils
-# =============================
 def clamp(x, lo, hi):
     return max(lo, min(hi, x))
 
-def wrap_pi(x):
-    while x > math.pi:
-        x -= 2 * math.pi
-    while x < -math.pi:
-        x += 2 * math.pi
-    return x
 
-# =============================
-# CPG Init
-# =============================
-def init_cpg():
-    for j in range(SERVO_COUNT):
-        cpg[j].r = 0.25
-        cpg[j].theta = j / (lambda_ * L)
-        cpg[j].alpha = 12.0
-        cpg[j].mu = 1.0
+def phase_offset(j):
+    return -sum(_gait().phase_lags[:j])
 
-# =============================
-# SIN Generator
-# =============================
-def generate_angles_sin(t):
-    angles = []
-    for i in range(SERVO_COUNT):
-        out_deg = SIN_BASE + SIN_AMP * math.sin(2 * math.pi * SIN_FREQ * t + i * SIN_PHASE_STEP)
-        target_deg = servoDefaultAngles[i] + out_deg
-        angles.append(clamp(round(target_deg, 1), MIN_DEG, MAX_DEG))
-    return angles
 
-# =============================
-# CPG Core
-# =============================
-def get_cpg_output(j):
-    return Ajoint * cpg[j].r * math.cos(cpg[j].theta)
+def target_angle(j, theta):
+    gait = _gait()
+    out_deg = (
+        gait.ajoint
+        * gait.amp_scales[j]
+        * math.cos(theta + phase_offset(j))
+        + gait.joint_bias_deg[j]
+    )
+    return clamp(round(servoDefaultAngles[j] + out_deg, 1), MIN_DEG, MAX_DEG)
 
-def get_lambda_input():
-    return lambda_ * L
 
-def get_target_delta():
-    return 1.0 / get_lambda_input()
-
-def update_cpg(t, dt, j, fb_phase=0.0, fb_amp=0.0):
-    o = cpg[j]
-
-    omega = 2.0 * math.pi * frequency
-    dr = o.alpha * (o.mu - o.r * o.r) * o.r
-    dtheta = omega
-
-    K_couple = 1.0
-    K_anchor = 0.3
-    k_fb_phase = 0.8
-    k_fb_amp = 0.25
-    target_delta = get_target_delta()
-
-    if j - 1 >= 0:
-        errL = wrap_pi((cpg[j - 1].theta - o.theta) - (-target_delta))
-        dtheta += K_couple * math.sin(errL)
-
-    if j + 1 < SERVO_COUNT:
-        errR = wrap_pi((cpg[j + 1].theta - o.theta) - (+target_delta))
-        dtheta += K_couple * math.sin(errR)
-
-    th_ref = omega * t + j / get_lambda_input()
-    e_ref = wrap_pi(th_ref - o.theta)
-    dtheta += K_anchor * math.sin(e_ref)
-
-    dtheta += k_fb_phase * fb_phase
-    dr += k_fb_amp * fb_amp
-
-    o.r += dr * dt
-    o.theta = wrap_pi(o.theta + dtheta * dt)
-
-def generate_angles_cpg(t, dt, fb_phase=0.0, fb_amp=0.0):
-    angles = []
-    for j in range(SERVO_COUNT):
-        update_cpg(t, dt, j, fb_phase, fb_amp)
-        out_deg = get_cpg_output(j)
-        target_deg = servoDefaultAngles[j] + out_deg
-        angles.append(clamp(round(target_deg, 1), MIN_DEG, MAX_DEG))
-    return angles
-
-# =============================
-# Unified API
-# 外部只呼叫這個
-# =============================
 def init_generator():
-    if ANGLE_MODE.upper() == "CPG":
-        init_cpg()
+    # Kept for controller.py compatibility.
+    pass
+
+
+def generate_angles_sin(t):
+    gait = _gait()
+    theta = 2.0 * math.pi * SIN_FREQ * t
+    angles = []
+    for j in range(SERVO_COUNT):
+        out_deg = (
+            SIN_BASE
+            + SIN_AMP
+            * gait.amp_scales[j]
+            * math.sin(theta + phase_offset(j))
+            + gait.joint_bias_deg[j]
+        )
+        angles.append(clamp(round(servoDefaultAngles[j] + out_deg, 1), MIN_DEG, MAX_DEG))
+    return angles
+
+
+def generate_angles_cpg(t, dt):
+    theta = 2.0 * math.pi * _gait().frequency * t
+    return [target_angle(j, theta) for j in range(SERVO_COUNT)]
+
 
 def generate_angles(t, dt):
     mode = ANGLE_MODE.upper()
@@ -171,21 +173,45 @@ def generate_angles(t, dt):
     raise ValueError(f"Unknown ANGLE_MODE: {ANGLE_MODE}")
 
 
-def generate_cpg_params(t, dt):
-    """Return Flutter-compatible set_param fields for on-board CPG mode.
+def list_gaits():
+    return [
+        {
+            "key": gait.key,
+            "label": gait.label,
+            "ajoint": gait.ajoint,
+            "frequency": gait.frequency,
+            "lambda": gait.lambda_,
+            "amp_scales": list(gait.amp_scales),
+            "phase_lags": list(gait.phase_lags),
+            "joint_bias_deg": list(gait.joint_bias_deg),
+        }
+        for gait in GAIT_PRESETS.values()
+    ]
 
-    This is the hook for PPO/path-following code. Keep the returned keys the
-    same as Flutter's WsControlApi.setParam payload so the ESP interface stays
-    unchanged.
-    """
-    cmd = OnboardCPGCommand()
+
+def set_gait(key):
+    global current_gait_key
+    if key not in GAIT_PRESETS:
+        raise ValueError(f"Unknown gait preset: {key}")
+    current_gait_key = key
+
+
+def current_gait():
+    return _gait()
+
+
+def generate_cpg_params(t, dt):
+    """Return Flutter-compatible set_param fields for on-board CPG mode."""
+    gait = _gait()
     payload = {
-        "Ajoint": round(cmd.Ajoint, 4),
-        "frequency": round(cmd.frequency, 4),
-        "lambda": round(cmd.lambda_, 4),
-        "L": round(cmd.L, 4),
-        "paused": cmd.paused,
-        "feedback": round(cmd.feedback, 4),
+        "Ajoint": round(gait.ajoint, 4),
+        "frequency": round(gait.frequency, 4),
+        "lambda": round(gait.lambda_, 4),
+        "L": round(gait.body_length, 4),
+        "ampScales": [round(value, 6) for value in gait.amp_scales],
+        "phaseLags": [round(value, 6) for value in gait.phase_lags],
+        "jointBiasDeg": [round(value, 6) for value in gait.joint_bias_deg],
+        "paused": False,
+        "feedback": round(ONBOARD_FEEDBACK_GAIN, 4),
     }
-    payload.update(cmd.extra)
     return payload

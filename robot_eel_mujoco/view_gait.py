@@ -9,7 +9,7 @@ import mujoco
 import mujoco.viewer
 import numpy as np
 
-from hopf_cpg import HopfCPG, HopfCPGParams, amp_scales_to_mu_scales
+from hopf_cpg import HopfCPG, HopfCPGParams, amp_scales_to_mu_scales, degrees_to_radians
 
 
 def parse_args():
@@ -17,8 +17,10 @@ def parse_args():
     parser.add_argument("gait", type=Path, help="Path to a gait JSON file.")
     parser.add_argument("--xml", default="eel.xml")
     parser.add_argument("--print-hz", type=float, default=2.0)
-    parser.add_argument("--reset-x", type=float, default=4.0)
-    parser.add_argument("--reset-y", type=float, default=1.0)
+    parser.add_argument("--start-x", type=float, default=-1.10)
+    parser.add_argument("--start-y", type=float, default=0.0)
+    parser.add_argument("--reset-x", type=float, default=1.725)
+    parser.add_argument("--reset-y", type=float, default=0.90)
     return parser.parse_args()
 
 
@@ -49,10 +51,12 @@ def main():
     base_body_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, "base_link")
 
     cpg = HopfCPG(num_joints=6)
+    ajoint_deg = float(gait["ajoint"])
+    ajoint_rad = degrees_to_radians(ajoint_deg)
     cpg_params = HopfCPGParams(
         frequency=float(gait["freq"]),
         wavelength=float(gait["wavelength"]),
-        ajoint=float(gait["ajoint"]),
+        ajoint=ajoint_rad,
         mu_scales=amp_scales_to_mu_scales(tuple(float(value) for value in gait["amp_scales"])),
         phase_lags=tuple(float(value) for value in gait["phase_lags"]),
         joint_bias=tuple(float(value) for value in gait["joint_bias"]),
@@ -62,17 +66,23 @@ def main():
 
     print(f"Loaded gait: {gait.get('name', args.gait.stem)}")
     print(f"  file={args.gait}")
-    print(f"  ajoint={cpg_params.ajoint}, freq={cpg_params.frequency}, wavelength={cpg_params.wavelength}")
+    print(f"  ajoint={ajoint_deg:.3f} deg ({cpg_params.ajoint:.3f} rad), freq={cpg_params.frequency}, wavelength={cpg_params.wavelength}")
     print("  joint_bias=", ", ".join(f"{value:.3f}" for value in cpg_params.joint_bias or ()))
+    print("  MuJoCo adapter: servo joint axes are axis=\"0 0 -1\" in eel.xml")
 
     def reset_to_start():
         mujoco.mj_resetData(model, data)
+        base_xml_pos = model.body_pos[base_body_id]
+        data.qpos[0] = args.start_x - base_xml_pos[0]
+        data.qpos[1] = args.start_y - base_xml_pos[1]
         cpg.reset()
         mujoco.mj_forward(model, data)
 
+    reset_to_start()
+
     with mujoco.viewer.launch_passive(model, data) as viewer:
         with viewer.lock():
-            viewer.cam.lookat[:] = np.array([0.0, 0.0, -0.02])
+            viewer.cam.lookat[:] = np.array([args.start_x, args.start_y, -0.02])
             viewer.cam.distance = 1.4
             viewer.cam.elevation = -70
             viewer.cam.azimuth = 0

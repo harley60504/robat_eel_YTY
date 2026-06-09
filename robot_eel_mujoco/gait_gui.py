@@ -182,7 +182,7 @@ class GaitGui(tk.Tk):
             self.info.insert(tk.END, f"name: {data.get('name', gait['file'].stem)}\n")
             self.info.insert(tk.END, f"file: {gait['file'].name}\n\n")
             self.info.insert(tk.END, f"freq: {data.get('freq')}\n")
-            self.info.insert(tk.END, f"ajoint: {data.get('ajoint')}\n")
+            self.info.insert(tk.END, f"ajoint: {data.get('ajoint')} deg\n")
             self.info.insert(tk.END, f"wavelength: {data.get('wavelength')}\n\n")
             self.info.insert(tk.END, "joint_bias:\n")
             self.info.insert(tk.END, ", ".join(str(v) for v in data.get("joint_bias", [])))
@@ -249,7 +249,11 @@ class GaitGui(tk.Tk):
                 messagebox.showwarning("No gait", "Please select a gait first.")
                 return
             gait_path = self.gaits[idx]["file"]
-            cmd = [sys.executable, str(ROOT / "view_gait.py"), str(gait_path)]
+            cmd = [
+                sys.executable,
+                str(ROOT / "view_gait.py"),
+                str(gait_path),
+            ]
             label = gait_path.stem
         try:
             self.process = subprocess.Popen(

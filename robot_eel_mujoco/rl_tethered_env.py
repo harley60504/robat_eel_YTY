@@ -7,7 +7,7 @@ from typing import Any
 import mujoco
 import numpy as np
 
-from hopf_cpg import HopfCPG, HopfCPGParams, amp_scales_to_mu_scales
+from hopf_cpg import DEFAULT_AJOINT_DEG, HopfCPG, HopfCPGParams, amp_scales_to_mu_scales, degrees_to_radians
 
 try:
     import gymnasium as gym
@@ -39,7 +39,7 @@ class TetheredConfig:
     phase_lag_lows: tuple[float, ...] | None = None
     phase_lag_highs: tuple[float, ...] | None = None
     normalized_actions: bool = True
-    fixed_ajoint: float = 0.45
+    fixed_ajoint: float = degrees_to_radians(DEFAULT_AJOINT_DEG)
     fixed_fb_phase: float = 0.0
     fixed_fb_amp: float = 0.0
     reward_mode: str = "maximize_fx"

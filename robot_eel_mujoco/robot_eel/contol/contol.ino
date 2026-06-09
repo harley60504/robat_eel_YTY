@@ -4,7 +4,6 @@
 
 #include "config.h"
 #include "utils.h"
-#include "logging.h"
 #include "cpg.h"
 #include "servo.h"
 #include "ServoStatusUART.h"
@@ -27,11 +26,8 @@ float angleDeg[bodyNum];
 // ==========================
 //  Control Parameters
 // ==========================
-// Match the current MuJoCo straight-swim defaults:
-// ajoint=0.45 rad, freq=1.0 Hz, wavelength=1.6275,
-// amp_scales=[1.24, 1.08, 1.0, 1.05, 1.1, 1.2],
-// phase_lags=[0.614439 x 5], joint_bias=[0 x 6].
-float Ajoint       = 25.7831f;  // deg, equivalent to 0.45 rad
+// Match gaits/straight.json in the MuJoCo project.
+float Ajoint       = 15.0f;  // deg
 float frequency    = 1.0f;
 float lambda       = 1.6275f;
 float L            = 1.0f;
@@ -82,6 +78,9 @@ void cameraTxTask(void* pv)
       frequency,
       lambda,
       L,
+      ampScales,
+      phaseLags,
+      jointBiasDeg,
       isPaused,
       (uint8_t)controlMode,
       useFeedback,
@@ -157,6 +156,13 @@ void cameraRxTask(void* pv)
           frequency    = pkt.frequency;
           lambda       = pkt.lambda;
           L            = pkt.L;
+          for (int i = 0; i < bodyNum; i++) {
+            ampScales[i] = pkt.ampScales[i];
+            jointBiasDeg[i] = pkt.jointBiasDeg[i];
+          }
+          for (int i = 0; i < bodyNum - 1; i++) {
+            phaseLags[i] = pkt.phaseLags[i];
+          }
           isPaused     = pkt.isPaused;
           controlMode  = pkt.controlMode;
 
@@ -165,8 +171,7 @@ void cameraRxTask(void* pv)
             g_haveAngleCmd = false;
           }
 
-          if ((previousMode != MODE_CPG && previousMode != MODE_PYTHON_CPG) &&
-              (controlMode == MODE_CPG || controlMode == MODE_PYTHON_CPG)) {
+          if (previousMode != MODE_CPG && controlMode == MODE_CPG) {
             initCPG();
           }
 
@@ -233,8 +238,6 @@ void setup()
   Serial.println("Control Board Ready");
 
   initCPG();
-  initLogFile();
-
   // Servo Task
   xTaskCreatePinnedToCore(
     servoTask,
@@ -285,5 +288,4 @@ void setup()
 // ==========================
 void loop()
 {
-  logServoErrorAvgPerMinute();
 }

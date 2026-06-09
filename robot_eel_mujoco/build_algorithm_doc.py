@@ -480,7 +480,7 @@ def build_doc():
         ["參數", "目前值", "效果"],
         [
             ["path-half-x", "1.10 m", "矩形追蹤路徑的半長"],
-            ["path-half-y", "0.40 m", "矩形追蹤路徑的半寬"],
+            ["path-half-y", "0.35 m", "矩形追蹤路徑的半寬"],
             ["lookahead", "0.50 m", "越大越早轉且更平滑，越小越貼近路徑但容易急轉"],
             ["steer_gain K", "0.55", "heading error 轉為 steering 的比例"],
             ["max_bias", "0.34 rad", "限制最大轉向偏置，避免關節過度彎曲"],

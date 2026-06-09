@@ -6,8 +6,13 @@ import '../ui/ui_layout.dart';
 
 class MotionParam extends StatefulWidget {
   final bool compact;
+  final bool embedded;
 
-  const MotionParam({super.key, this.compact = false});
+  const MotionParam({
+    super.key,
+    this.compact = false,
+    this.embedded = false,
+  });
 
   @override
   State<MotionParam> createState() => _MotionParamState();
@@ -25,20 +30,15 @@ class _MotionParamState extends State<MotionParam> {
   double length = double.nan;
 
   StreamSubscription? _sub;
-
   bool _didInitText = false;
   bool _editing = false;
 
   @override
   void initState() {
     super.initState();
-
     _applyCtrlParams(WsControlApi.lastCtrlParams);
-
     _sub = WsControlApi.stream().listen((msg) {
-      if (!mounted) return;
-      if (msg is! Map) return;
-      if (msg["type"] != "ctrl_params") return;
+      if (!mounted || msg is! Map || msg["type"] != "ctrl_params") return;
       _applyCtrlParams(msg);
     });
   }
@@ -53,10 +53,8 @@ class _MotionParamState extends State<MotionParam> {
       length = _num(msg["L"]);
     });
 
-    // ✅ 如果使用者正在輸入，就不要更新文字框
     if (_editing) return;
 
-    // ✅ 第一次同步一定要寫入 UI
     if (!_didInitText) {
       freqCtrl.text = _fmt(msg["frequency"]);
       ampCtrl.text = _fmt(msg["Ajoint"]);
@@ -66,7 +64,6 @@ class _MotionParamState extends State<MotionParam> {
       return;
     }
 
-    // ✅ 後續同步：只有空的才補值（安全）
     if (freqCtrl.text.isEmpty) freqCtrl.text = _fmt(msg["frequency"]);
     if (ampCtrl.text.isEmpty) ampCtrl.text = _fmt(msg["Ajoint"]);
     if (lamCtrl.text.isEmpty) lamCtrl.text = _fmt(msg["lambda"]);
@@ -79,10 +76,7 @@ class _MotionParamState extends State<MotionParam> {
     return n.toStringAsFixed(2);
   }
 
-  double _num(dynamic v) {
-    if (v is! num) return double.nan;
-    return v.toDouble();
-  }
+  double _num(dynamic v) => v is num ? v.toDouble() : double.nan;
 
   String _status(double v, {String unit = ""}) {
     if (v.isNaN) return "-";
@@ -92,7 +86,6 @@ class _MotionParamState extends State<MotionParam> {
   void setParam(String key, TextEditingController ctrl) {
     final v = double.tryParse(ctrl.text.trim());
     if (v == null) return;
-
     WsControlApi.setParam({key: v});
     setState(() => _editing = false);
   }
@@ -115,106 +108,129 @@ class _MotionParamState extends State<MotionParam> {
 
   @override
   Widget build(BuildContext context) {
+    final content = LayoutBuilder(
+      builder: (context, constraints) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: paramTile(
+                    label: "\u983b\u7387 (Hz)",
+                    value: _status(freq, unit: " Hz"),
+                    ctrl: freqCtrl,
+                    onSet: () => setParam("frequency", freqCtrl),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: paramTile(
+                    label: "\u632f\u5e45 (deg)",
+                    value: _status(amp, unit: " deg"),
+                    ctrl: ampCtrl,
+                    onSet: () => setParam("Ajoint", ampCtrl),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: paramTile(
+                    label: "lambda",
+                    value: _status(lambda),
+                    ctrl: lamCtrl,
+                    onSet: () => setParam("lambda", lamCtrl),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: paramTile(
+                    label: "L",
+                    value: _status(length),
+                    ctrl: lCtrl,
+                    onSet: () => setParam("L", lCtrl),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+
+    if (widget.embedded) return content;
+
     return UiCard(
-      title: "參數設定",
+      title: "\u53c3\u6578\u8a2d\u5b9a",
       minHeight: widget.compact ? 188 : 240,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          paramRow(
-            label: "頻率 (Hz)",
-            value: _status(freq, unit: " Hz"),
-            ctrl: freqCtrl,
-            onSet: () => setParam("frequency", freqCtrl),
-          ),
-          const SizedBox(height: 8),
-          paramRow(
-            label: "振幅 (°)",
-            value: _status(amp, unit: "°"),
-            ctrl: ampCtrl,
-            onSet: () => setParam("Ajoint", ampCtrl),
-          ),
-          const SizedBox(height: 8),
-          paramRow(
-            label: "λ",
-            value: _status(lambda),
-            ctrl: lamCtrl,
-            onSet: () => setParam("lambda", lamCtrl),
-          ),
-          const SizedBox(height: 8),
-          paramRow(
-            label: "L",
-            value: _status(length),
-            ctrl: lCtrl,
-            onSet: () => setParam("L", lCtrl),
-          ),
-        ],
-      ),
+      child: content,
     );
   }
 
-  Widget paramRow({
+  Widget paramTile({
     required String label,
     required String value,
     required TextEditingController ctrl,
     required VoidCallback onSet,
   }) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        Widget field() => TextField(
-              controller: ctrl,
-              keyboardType: TextInputType.number,
-              onTap: () => setState(() => _editing = true),
-              onChanged: (_) => setState(() => _editing = true),
-              onSubmitted: (_) => onSet(),
-              decoration: _fieldDeco(),
-            );
-
-        return Row(
-          children: [
-            SizedBox(
-              width: widget.compact ? 78 : 112,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Text(label),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    value,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 12,
+    return Container(
+      constraints: const BoxConstraints(minHeight: 116),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0B0F14),
+        border: Border.all(color: const Color(0xFF252B33)),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            label,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: Colors.white70, fontSize: 12),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: ctrl,
+                  keyboardType: TextInputType.number,
+                  onTap: () => setState(() => _editing = true),
+                  onChanged: (_) => setState(() => _editing = true),
+                  onSubmitted: (_) => onSet(),
+                  decoration: _fieldDeco(),
+                ),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 52,
+                height: UiLayout.buttonHeight,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    textStyle: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(child: field()),
-            const SizedBox(width: 8),
-            SizedBox(
-              width: widget.compact ? 70 : 94,
-              height: UiLayout.buttonHeight,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  padding: EdgeInsets.zero,
-                  textStyle: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  onPressed: onSet,
+                  child: const Text("\u8a2d\u5b9a", softWrap: false),
                 ),
-                onPressed: onSet,
-                child: const Text("設定", softWrap: false),
               ),
-            ),
-          ],
-        );
-      },
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

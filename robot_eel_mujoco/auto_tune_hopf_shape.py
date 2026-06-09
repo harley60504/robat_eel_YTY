@@ -8,7 +8,7 @@ from pathlib import Path
 import mujoco
 import numpy as np
 
-from hopf_cpg import HopfCPG, HopfCPGParams, amp_scales_to_mu_scales
+from hopf_cpg import DEFAULT_AJOINT_DEG, HopfCPG, HopfCPGParams, amp_scales_to_mu_scales, degrees_to_radians
 
 
 def parse_args():
@@ -17,7 +17,7 @@ def parse_args():
     )
     parser.add_argument("--xml", default="eel_tethered.xml")
     parser.add_argument("--output-dir", type=Path, default=Path("outputs/hopf_shape_auto"))
-    parser.add_argument("--ajoint", type=float, default=0.45)
+    parser.add_argument("--ajoint", type=float, default=DEFAULT_AJOINT_DEG, help="Base joint angle amplitude in degrees.")
     parser.add_argument("--freq", type=float, default=1.0)
     parser.add_argument("--wavelength", type=float, default=1.6275)
     parser.add_argument("--seconds", type=float, default=8.0)
@@ -61,13 +61,14 @@ def measure_case(
     seconds: float,
     warmup_seconds: float,
 ) -> dict[str, float]:
+    ajoint_rad = degrees_to_radians(ajoint)
     data = mujoco.MjData(model)
     cpg = HopfCPG(
         num_joints=6,
         params=HopfCPGParams(
             frequency=freq,
             wavelength=wavelength,
-            ajoint=ajoint,
+            ajoint=ajoint_rad,
             mu_scales=amp_scales_to_mu_scales(amp_scales),
             phase_lags=phase_lags,
             fb_phase=0.0,

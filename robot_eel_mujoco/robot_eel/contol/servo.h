@@ -2,7 +2,6 @@
 #include <math.h>
 #include "config.h"
 #include "utils.h"
-#include "logging.h"
 #include "cpg.h"
 #include "ServoStatusUART.h"
 
@@ -47,7 +46,6 @@ void servoTask(void *pv)
           break;
 
           case MODE_CPG:
-          case MODE_PYTHON_CPG:
           {
             float fb_phase = 0, fb_amp = 0;
             updateCPG(t, dt, j, fb_phase, fb_amp);

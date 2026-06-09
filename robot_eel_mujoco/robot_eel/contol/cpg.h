@@ -23,7 +23,7 @@ inline float getNeighborDesiredDelta(int leftJoint, int rightJoint) {
 
 inline void initCPG() {
   for (int j = 0; j < bodyNum; j++) {
-    cpg[j].r = 0.25f;
+    cpg[j].r = fmaxf(0.0f, ampScales[j]);
     cpg[j].theta = getPhaseOffset(j);
     cpg[j].alpha = 4.0f;
     cpg[j].mu = ampScales[j] * ampScales[j];

@@ -31,8 +31,8 @@
     <exclude body1="servo5" body2="servo6" />
   </contact>
   <worldbody>
-    <include file="environment_2x8.xml" />
-    <body name="base_link" pos="-3.8 0 -0.02">
+    <include file="environment_3x1_5.xml" />
+    <body name="base_link" pos="-0.85 -0.35 -0.02">
       <joint name="root_x" type="slide" pos="0 0 0" axis="1 0 0" limited="false" armature="0.01" damping="0.1" />
       <joint name="root_y" type="slide" pos="0 0 0" axis="0 1 0" limited="false" armature="0.01" damping="0.1" />
       <joint name="root_z_rot" type="hinge" pos="0 0 0" axis="0 0 1" limited="false" armature="0.01" damping="0.1" />

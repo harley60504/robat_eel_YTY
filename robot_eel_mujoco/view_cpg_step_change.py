@@ -56,8 +56,10 @@ def parse_args():
         help="hopf uses oscillator state; sin directly computes joint angles from time.",
     )
     parser.add_argument("--print-hz", type=float, default=2.0)
-    parser.add_argument("--reset-x", type=float, default=4.0)
-    parser.add_argument("--reset-y", type=float, default=1.0)
+    parser.add_argument("--start-x", type=float, default=-1.10)
+    parser.add_argument("--start-y", type=float, default=0.0)
+    parser.add_argument("--reset-x", type=float, default=1.725)
+    parser.add_argument("--reset-y", type=float, default=0.90)
     return parser.parse_args()
 
 
@@ -109,8 +111,13 @@ def main():
 
     def reset_to_start():
         mujoco.mj_resetData(model, data)
+        base_xml_pos = model.body_pos[base_body_id]
+        data.qpos[0] = args.start_x - base_xml_pos[0]
+        data.qpos[1] = args.start_y - base_xml_pos[1]
         cpg.reset()
         mujoco.mj_forward(model, data)
+
+    reset_to_start()
 
     print(
         "CPG step-change viewer\n"
@@ -124,7 +131,7 @@ def main():
 
     with mujoco.viewer.launch_passive(model, data) as viewer:
         with viewer.lock():
-            viewer.cam.lookat[:] = np.array([0.0, 0.0, -0.02])
+            viewer.cam.lookat[:] = np.array([args.start_x, args.start_y, -0.02])
             viewer.cam.distance = 1.4
             viewer.cam.elevation = -70
             viewer.cam.azimuth = 0

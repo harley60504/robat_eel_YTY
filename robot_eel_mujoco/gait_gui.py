@@ -249,7 +249,11 @@ class GaitGui(tk.Tk):
                 messagebox.showwarning("No gait", "Please select a gait first.")
                 return
             gait_path = self.gaits[idx]["file"]
-            cmd = [sys.executable, str(ROOT / "view_gait.py"), str(gait_path)]
+            cmd = [
+                sys.executable,
+                str(ROOT / "view_gait.py"),
+                str(gait_path),
+            ]
             label = gait_path.stem
         try:
             self.process = subprocess.Popen(

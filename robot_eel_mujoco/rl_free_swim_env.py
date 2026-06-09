@@ -38,8 +38,8 @@ class FreeSwimConfig:
     yaw_rate_weight: float = 0.02
     energy_weight: float = 0.02
     smoothness_weight: float = 0.02
-    boundary_x: float = 4.0
-    boundary_y: float = 1.0
+    boundary_x: float = 1.725
+    boundary_y: float = 0.90
 
 
 class EelFreeSwimRLEnv(gym.Env if gym is not None else object):

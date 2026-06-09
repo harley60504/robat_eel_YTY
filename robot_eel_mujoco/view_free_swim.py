@@ -40,8 +40,8 @@ def parse_args():
         help="Static per-joint steering offset in radians.",
     )
     parser.add_argument("--print-hz", type=float, default=2.0)
-    parser.add_argument("--reset-x", type=float, default=4.0)
-    parser.add_argument("--reset-y", type=float, default=1.0)
+    parser.add_argument("--reset-x", type=float, default=1.725)
+    parser.add_argument("--reset-y", type=float, default=0.90)
     return parser.parse_args()
 
 

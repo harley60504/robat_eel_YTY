@@ -84,7 +84,7 @@ def parse_args():
     )
     parser.add_argument("--controller", choices=("pure_pursuit", "waypoint"), default="pure_pursuit")
     parser.add_argument("--path-half-x", type=float, default=1.10)
-    parser.add_argument("--path-half-y", type=float, default=0.40)
+    parser.add_argument("--path-half-y", type=float, default=0.35)
     parser.add_argument("--lookahead", type=float, default=0.75)
     parser.add_argument("--reach-radius", type=float, default=0.25)
     parser.add_argument("--steer-gain", type=float, default=0.80)

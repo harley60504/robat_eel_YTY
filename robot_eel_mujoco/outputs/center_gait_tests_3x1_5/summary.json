@@ -1,0 +1,32 @@
+[
+  {
+    "name": "straight",
+    "start_x": 0.0,
+    "start_y": 0.0,
+    "xml": "eel_gait_center.xml",
+    "duration_s": 7.194000000000737,
+    "hit_wall": true,
+    "dx": 1.3649292231352912,
+    "dy": -0.007150840558815148,
+    "yaw_change_rad": 0.3582440661691966,
+    "yaw_change_deg": 20.52587302710036,
+    "yaw_rate_rad_s": 0.04980454138317251,
+    "speed_m_s": 0.1897605942682522,
+    "turn_radius_m": 3.81010624730633
+  },
+  {
+    "name": "turn_left",
+    "start_x": 0.0,
+    "start_y": 0.0,
+    "xml": "eel_gait_center.xml",
+    "duration_s": 6.555000000000524,
+    "hit_wall": true,
+    "dx": 0.7654080876310735,
+    "dy": 0.6191721453849005,
+    "yaw_change_rad": 1.0754394374833487,
+    "yaw_change_deg": 61.61814088971923,
+    "yaw_rate_rad_s": 0.16408902006152926,
+    "speed_m_s": 0.15021232647078508,
+    "turn_radius_m": 0.9154319186893751
+  }
+]

@@ -1,0 +1,22 @@
+{
+  "clip": "spin_left_141254",
+  "video": "Release\\python_backend\\recordings\\clean_v_20260608_141254.mp4",
+  "wall_seconds": 8.0,
+  "point_count": 36,
+  "start_point_px": [
+    588.307917888563,
+    1457.3695014662758
+  ],
+  "end_point_px": [
+    422.0028328611898,
+    1708.7620396600566
+  ],
+  "kind": "circle",
+  "center_px": [
+    458.2979285829499,
+    1581.909030726168
+  ],
+  "radius_px": 166.31540769770587,
+  "arc_deg": 210.2642912409124,
+  "rmse_px": 18.561699198649762
+}

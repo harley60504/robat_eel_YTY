@@ -1,0 +1,105 @@
+[
+  {
+    "key": "straight",
+    "real": {
+      "clip": "straight_233739",
+      "video": "Release\\python_backend\\recordings\\clean_v_20260607_233739.mp4",
+      "wall_seconds": 15.0,
+      "point_count": 42,
+      "start_point_px": [
+        528.4479166666666,
+        344.0729166666667
+      ],
+      "end_point_px": [
+        570.4170616113744,
+        1609.60663507109
+      ],
+      "kind": "line",
+      "line_start_px": [
+        520.1470795953971,
+        344.36028149684955
+      ],
+      "line_end_px": [
+        563.9561045682033,
+        1609.8303055042752
+      ],
+      "direction_px": [
+        0.03459805134726395,
+        0.9994013082055537
+      ],
+      "length_px": 1266.2281043834175,
+      "rmse_px": 10.203944487428288
+    },
+    "sim": {
+      "name": "straight",
+      "kind": "line",
+      "radius": null,
+      "rmse": 0.2628830959460898,
+      "arc_deg": 0.0
+    }
+  },
+  {
+    "key": "turn_left",
+    "real": {
+      "clip": "turn_left_141203",
+      "video": "Release\\python_backend\\recordings\\clean_v_20260608_141203.mp4",
+      "wall_seconds": 8.0,
+      "point_count": 41,
+      "start_point_px": [
+        602.5793357933579,
+        1465.9557195571956
+      ],
+      "end_point_px": [
+        322.03562945368174,
+        1272.3064133016628
+      ],
+      "kind": "circle",
+      "center_px": [
+        335.61416185841125,
+        1557.3435794541992
+      ],
+      "radius_px": 259.0920838153421,
+      "arc_deg": 73.83021407605843,
+      "rmse_px": 21.793848620030356
+    },
+    "sim": {
+      "name": "turn_left",
+      "kind": "circle",
+      "radius": 0.8081131985097364,
+      "rmse": 0.02748744554446459,
+      "arc_deg": 73.78445242918411
+    }
+  },
+  {
+    "key": "spin_left",
+    "real": {
+      "clip": "spin_left_141254",
+      "video": "Release\\python_backend\\recordings\\clean_v_20260608_141254.mp4",
+      "wall_seconds": 8.0,
+      "point_count": 36,
+      "start_point_px": [
+        588.307917888563,
+        1457.3695014662758
+      ],
+      "end_point_px": [
+        422.0028328611898,
+        1708.7620396600566
+      ],
+      "kind": "circle",
+      "center_px": [
+        458.2979285829499,
+        1581.909030726168
+      ],
+      "radius_px": 166.31540769770587,
+      "arc_deg": 210.2642912409124,
+      "rmse_px": 18.561699198649762
+    },
+    "sim": {
+      "name": "spin_left",
+      "kind": "circle",
+      "radius": 0.5646902574073728,
+      "rmse": 0.027917790138555637,
+      "arc_deg": 88.97258189851877
+    }
+  }
+]
